@@ -119,6 +119,10 @@ class LevelsController < ApplicationController
         @game = Game.custom_maze
         @level = @type_class.new
         render :edit
+      elsif @type_class <= Playlab
+        @game = Game.custom_maze
+        @level = @type_class.new
+        render :edit
       elsif @type_class <= Match
         @game = Game.find_by(name: @type_class.to_s)
         @level = @type_class.new
