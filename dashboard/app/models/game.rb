@@ -15,6 +15,10 @@ class Game < ActiveRecord::Base
     @@game_custom_maze ||= find_by_name("CustomMaze")
   end
 
+  def self.custom_playlab
+    @@game_custom_playlab ||= find_by_name("CustomPlaylab")
+  end
+
   def unplugged?
     app == 'unplug'
   end
@@ -69,6 +73,7 @@ class Game < ActiveRecord::Base
         Custom:turtle
         Flappy:flappy:flappy_intro
         CustomMaze:maze
+        CustomPlaylab:studio
         Studio:studio
         Jigsaw:jigsaw
         MazeStep:maze
