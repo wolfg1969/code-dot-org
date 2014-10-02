@@ -198,6 +198,7 @@ module LevelsHelper
       disable_param_editing
       success_condition:fn_successCondition
       failure_condition:fn_failureCondition
+      soft_buttons
     ).map{ |x| x.include?(':') ? x.split(':') : [x,x.camelize(:lower)]}]
     .each do |dashboard, blockly|
       # Select first valid value from 1. local_assigns, 2. property of @level object, 3. named instance variable, 4. properties json
@@ -217,7 +218,7 @@ module LevelsHelper
     level['scale'] = {'stepSpeed' =>  @level.properties['step_speed'].to_i } if @level.properties['step_speed'].present?
 
     # Blockly requires these fields as objects not strings
-    %w(map initialDirt finalDirt goal).each do |x|
+    %w(map initialDirt finalDirt goal soft_buttons).each do |x|
       level[x] = JSON.parse(level[x]) if level[x].is_a? String
     end
 

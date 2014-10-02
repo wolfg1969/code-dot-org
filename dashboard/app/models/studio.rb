@@ -6,6 +6,7 @@ class Studio < Maze
     success_condition
     failure_condition
     timeout_failure_tick
+    soft_buttons
   )
 
   def self.create_from_level_builder(params, level_params)

@@ -179,7 +179,8 @@ class LevelsController < ApplicationController
         :level_num,
         :user,
         :match_text,
-        {concept_ids: []}
+        {concept_ids: []},
+        {soft_buttons: []}
       ]
       permitted_params.concat(Level.serialized_properties.values.flatten)
       params[:level].permit(permitted_params)

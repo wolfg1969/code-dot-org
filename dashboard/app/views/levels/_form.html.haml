@@ -5,7 +5,7 @@
     = f.text_field :name, placeholder: 'Level Name'
   .field
     = f.label 'concepts'
-    = f.collection_select :concept_ids, Concept.cached, :id, :name, { :selected => @level.concept_ids }, { :multiple => true, :name => 'level[concept_ids][]', :size => Concept.cached.length, :style => 'width:auto' }
+    = f.collection_select :concept_ids, Concept.cached, :id, :name, { :selected => @level.concept_ids }, { :multiple => true, :name => 'level[concept_ids][]', :size => Concept.cached.length }
     %p (shift-click to select multiple)
   = render partial: 'levels/editors/video', locals: {f: f}
   = render partial: 'levels/editors/blockly', locals: {f: f} if @level.is_a? Blockly
