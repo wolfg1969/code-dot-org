@@ -196,6 +196,8 @@ module LevelsHelper
       slider_speed
       permitted_errors
       disable_param_editing
+      success_condition:fn_successCondition
+      failure_condition:fn_failureCondition
     ).map{ |x| x.include?(':') ? x.split(':') : [x,x.camelize(:lower)]}]
     .each do |dashboard, blockly|
       # Select first valid value from 1. local_assigns, 2. property of @level object, 3. named instance variable, 4. properties json
@@ -219,8 +221,8 @@ module LevelsHelper
       level[x] = JSON.parse(level[x]) if level[x].is_a? String
     end
 
-    # Unescape playlab goal functions
-    level['goal']['successCondition'] = 'foo' if level['goal']['successCondition'].is_a? String
+    # Blockly expects fn_successCondition and fn_failureCondition to be inside a 'goals' object
+    level['goal'] = {fn_successCondition: level['fn_successCondition'], fn_failureCondition: level['fn_failureCondition']}
 
     # Fetch localized strings
     %w(instructions).each do |label|

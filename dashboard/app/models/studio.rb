@@ -3,7 +3,8 @@ class Studio < Maze
     first_sprite_index
     protaganist_sprite_index
     scale
-    goal
+    success_condition
+    failure_condition
     timeout_failure_tick
   )
 
