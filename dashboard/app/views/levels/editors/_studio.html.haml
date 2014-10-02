@@ -1,4 +1,28 @@
 .field
   = f.label :first_sprite_index, 'First sprite index'
-  %p Integer representing which sprite to use for the first character. If not set, default is 1.
+  %p Integer representing which sprite to use for the first character. Default is 1.
   = f.number_field :first_sprite_index
+.field
+  = f.label :protaganist_sprite_index, 'Protaganist sprite index'
+  %p Integer of the protaganist character (zero indexed, counting from the top left of the grid). This character must touch all the waypoint flags to complete the level. Default is 0.
+  = f.number_field :protaganist_sprite_index
+.field
+  = f.label :timeout_failure_tick, 'Timeout failure tick'
+  %p Number of 'ticks' to simulate before marking the level as failed. Default is unlimited.  Step speed (above) controls the length of a tick.
+  = f.number_field :timeout_failure_tick
+.field
+  %label{for: 'level_success_condition'} Success condition
+  %p JavaScript function to run every tick. If the function ever return true, the level immediately succeeds.
+  %textarea#level_success_condition.goal_editor{rows: 4}
+.field
+  %label{for: 'level_failure_condition'} Failure condition
+  %p JavaScript function to run every tick. If the function ever return true, the level immediately fails.
+  %textarea#level_failure_condition.goal_editor{rows: 4}
+= f.hidden_field :goal
+:javascript
+  $('.goal_editor').change(function () {
+    $('#level_goal').val(JSON.stringify({
+      successCondition: $('#level_success_condition').val(),
+      failureCondition: $('#level_failure_condition').val()
+    }));
+  });

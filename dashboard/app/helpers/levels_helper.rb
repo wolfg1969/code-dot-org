@@ -214,10 +214,13 @@ module LevelsHelper
     level['sliderSpeed'] = level['sliderSpeed'].to_f if level['sliderSpeed']
     level['scale'] = {'stepSpeed' =>  @level.properties['step_speed'].to_i } if @level.properties['step_speed'].present?
 
-    # Blockly requires map as an array not a string
-    %w(map initialDirt finalDirt).each do |x|
+    # Blockly requires these fields as objects not strings
+    %w(map initialDirt finalDirt goal).each do |x|
       level[x] = JSON.parse(level[x]) if level[x].is_a? String
     end
+
+    # Unescape playlab goal functions
+    level['goal']['successCondition'] = 'foo' if level['goal']['successCondition'].is_a? String
 
     # Fetch localized strings
     %w(instructions).each do |label|

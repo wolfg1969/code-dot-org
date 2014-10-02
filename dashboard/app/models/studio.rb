@@ -1,6 +1,7 @@
 class Studio < Maze
   serialized_attrs %w(
     first_sprite_index
+    protaganist_sprite_index
     scale
     goal
     timeout_failure_tick
@@ -14,6 +15,6 @@ class Studio < Maze
 
   # List of possible skins, the first is used as a default.
   def self.skins
-    []
+    ['studio']
   end
 end
