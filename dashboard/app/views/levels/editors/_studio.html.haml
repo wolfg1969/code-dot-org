@@ -19,12 +19,8 @@
   %p Optional JavaScript function to run every tick. If the function ever return true, the level immediately fails.
   = f.text_area :failure_condition, rows: 4
 .field
-  %label{for: 'soft_buttons'} Control buttons
-  %select#soft_buttons{name: 'level[soft_buttons][]', multiple: true}
-    %option{value: 'leftButton'} Left
-    %option{value: 'rightButton'} Right
-    %option{value: 'downButton'} Down
-    %option{value: 'upButton'} Up
+  = f.label :soft_buttons, 'Controls Buttons'
+  = f.collection_select :soft_buttons, soft_button_options, :value, :name, {selected: @level.soft_buttons}, {multiple: true}
 
 :javascript
   CodeMirror.fromTextArea($('#level_success_condition').get(0), {

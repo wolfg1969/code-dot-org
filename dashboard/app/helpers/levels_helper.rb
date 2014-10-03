@@ -292,4 +292,14 @@ module LevelsHelper
   def boolean_check_box(f, field_name_symbol)
     f.check_box field_name_symbol, {}, boolean_string_true, boolean_string_false
   end
+
+  SoftButton = Struct.new(:name, :value)
+  def soft_button_options
+    [
+        SoftButton.new('Left', 'leftButton'),
+        SoftButton.new('Right', 'rightButton'),
+        SoftButton.new('Down', 'downButton'),
+        SoftButton.new('Up', 'upButton'),
+    ]
+  end
 end

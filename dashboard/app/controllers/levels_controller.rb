@@ -72,7 +72,12 @@ class LevelsController < ApplicationController
     render json: { redirect: level_url(@level) }
   end
 
+  # PATCH/PUT /levels/1
+  # PATCH/PUT /levels/1.json
   def update
+    # http://stackoverflow.com/questions/8929230/why-is-the-first-element-always-blank-in-my-rails-multi-select
+    params[:level][:soft_buttons].delete_if{ |s| s.empty? } if params[:level][:soft_buttons].is_a? Array
+
     if @level.update(level_params)
       render json: { redirect: level_url(@level) }.to_json
     else
