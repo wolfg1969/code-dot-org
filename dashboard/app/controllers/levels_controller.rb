@@ -93,6 +93,7 @@ class LevelsController < ApplicationController
 
     # Set some defaults.
     params[:level].reverse_merge!(skin: type_class.skins.first) if type_class <= Blockly
+    params[:level][:soft_buttons] = nil if type_class <= Studio
     params.merge!(user: current_user)
 
     begin
@@ -120,12 +121,12 @@ class LevelsController < ApplicationController
     if @type_class
       if @type_class == Artist
         artist_builder
-      elsif @type_class <= Maze
-        @game = Game.custom_maze
-        @level = @type_class.new
-        render :edit
       elsif @type_class <= Studio
         @game = Game.custom_studio
+        @level = @type_class.new
+        render :edit
+      elsif @type_class <= Maze
+        @game = Game.custom_maze
         @level = @type_class.new
         render :edit
       elsif @type_class <= Match
