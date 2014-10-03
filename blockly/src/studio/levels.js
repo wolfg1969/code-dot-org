@@ -108,24 +108,6 @@ levels.custom = {
   'scale': {
     'snapRadius': 2
   },
-  'map': [
-    [0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 16,0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0]
-  ],
-  'goal': {
-    successCondition: function () {
-      return false;
-    },
-    failureCondition: function () {
-      return true;
-    }
-  },
   'startBlocks':
    '<block type="when_run" deletable="false" x="20" y="20"></block>'
 };

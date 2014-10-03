@@ -97,7 +97,18 @@ class LevelsController < ApplicationController
 
     # Set some defaults.
     params[:level].reverse_merge!(skin: type_class.skins.first) if type_class <= Blockly
-    params[:level][:soft_buttons] = nil if type_class <= Studio
+     if type_class <= Studio
+       params[:level][:soft_buttons] = nil
+      params[:level][:success_condition] = "function () {
+  // Sample conditions:
+  // return Studio.sprite[0].isCollidingWith(1);
+  // return Studio.sayComplete > 0;
+  // return Studio.sprite[0].emotion === Emotions.HAPPY;
+  // return Studio.tickCount >= 50;
+}"
+      params[:level][:failure_condition] = "function () {
+}"
+     end
     params.merge!(user: current_user)
 
     begin
