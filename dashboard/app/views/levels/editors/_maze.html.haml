@@ -1,9 +1,10 @@
-.field
-  = f.label :start_direction
-  = f.select :start_direction, options_for_select(@level.class.start_directions, @level.start_direction)
-.field
-  = f.label :step_mode
-  = f.select :step_mode, options_for_select(@level.class.step_modes, @level.step_mode)
+- unless @level.is_a? Studio
+  .field
+    = f.label :start_direction
+    = f.select :start_direction, options_for_select(@level.class.start_directions, @level.start_direction)
+  .field
+    = f.label :step_mode
+    = f.select :step_mode, options_for_select(@level.class.step_modes, @level.step_mode)
 - if @level.is_a? Maze
   = hidden_field_tag :size, 8
   = f.hidden_field :maze_data
