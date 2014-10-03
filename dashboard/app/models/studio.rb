@@ -2,7 +2,6 @@ class Studio < Maze
   serialized_attrs %w(
     first_sprite_index
     protaganist_sprite_index
-    scale
     success_condition
     failure_condition
     timeout_failure_tick

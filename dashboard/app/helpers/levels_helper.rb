@@ -198,6 +198,9 @@ module LevelsHelper
       disable_param_editing
       success_condition:fn_successCondition
       failure_condition:fn_failureCondition
+      first_sprite_index
+      protaganist_sprite_index
+      timeout_failure_tick
       soft_buttons
     ).map{ |x| x.include?(':') ? x.split(':') : [x,x.camelize(:lower)]}]
     .each do |dashboard, blockly|
