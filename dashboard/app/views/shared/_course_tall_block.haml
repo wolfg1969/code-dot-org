@@ -13,6 +13,11 @@
   - title = t('upsell.20hour.title')
   - body = t('upsell.20hour.body')
 
+- elsif id == "gallery"
+  - url = "/gallery"
+  - title = "Gallery"
+  - body = "View a gallery of Artist images created by our users."
+
 - elsif id == "course1" || id == "course2" || id == "course3" || id == "artist" || id == "playlab"
   - url = script_url(id)
   - title = data_t_suffix('script.name', id, "title")
