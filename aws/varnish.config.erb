@@ -65,4 +65,5 @@ DAEMON_OPTS="-a ${VARNISH_LISTEN_ADDRESS}:${VARNISH_LISTEN_PORT} \
              -w ${VARNISH_MIN_THREADS},${VARNISH_MAX_THREADS},${VARNISH_THREAD_TIMEOUT} \
              -S ${VARNISH_SECRET_FILE} \
              -p thread_pool_add_delay=${VARNISH_THREAD_POOL_ADD_DELAY} \
+             -p sess_timeout=15 \
              -s ${VARNISH_STORAGE}"
