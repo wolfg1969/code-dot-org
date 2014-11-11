@@ -64,6 +64,9 @@ Blockly.BlockSpaceEditor.prototype.populateSVGEffects_ = function(container) {
     width: 0,
     height: 0
   }, container);
+
+  svg.style.display = 'none';
+
   /*
    <defs>
    ... filters go here ...
