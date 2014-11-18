@@ -65,6 +65,11 @@ When /^I press "([^"]*)"$/ do |button|
   @button.click
 end
 
+When /^I press element with class "([^"]*)"$/ do |button|
+  @button = @browser.find_element(:class, button)
+  @button.click
+end
+
 When /^I press "([^"]*)" using jQuery$/ do |selector|
   @browser.execute_script("$('" + selector + "').click()");
 end
@@ -80,6 +85,14 @@ end
 
 When /^I click selector "([^"]*)"$/ do |jquery_selector|
   @browser.execute_script("$(\"#{jquery_selector}\").click();")
+end
+
+When /^I type "([^"]*)" into element "([^"]*)"$/ do |text, id|
+  @browser.find_element(:id, id).send_keys(text)
+end
+
+When /^I delete all text from element "([^"]*)"$/ do |id|
+  @browser.find_element(:id, id).clear
 end
 
 When /^I hold key "([^"]*)"$/ do |keyCode|
