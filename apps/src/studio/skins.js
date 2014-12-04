@@ -19,6 +19,9 @@ function loadInfinity(skin, assetUrl) {
   skin.defaultBackground = 'leafy';
   skin.projectileFrames = 10;
 
+  skin.explosion = skin.assetUrl('vanish.png');
+  skin.explosionFrames = 17;
+
   skin.avatarList = ['anna', 'elsa', 'hiro', 'baymax', 'rapunzel'];
   skin.avatarList.forEach(function (name) {
     skin[name] = {
@@ -85,6 +88,9 @@ function loadInfinity(skin, assetUrl) {
 function loadStudio(skin, assetUrl) {
   skin.defaultBackground = 'cave';
   skin.projectileFrames = 8;
+
+  skin.explosion = skin.assetUrl('explosion.gif');
+  skin.explosionThumbnail = skin.assetUrl('explosion_thumb.png');
 
   skin.hardcourt = {
     background: skin.assetUrl('background.png'),
@@ -239,8 +245,7 @@ exports.load = function(assetUrl, id) {
   skin.blue_fireball = skin.assetUrl('blue_fireball.png');
   skin.purple_fireball = skin.assetUrl('purple_fireball.png');
   skin.red_fireball = skin.assetUrl('red_fireball.png');
-  skin.explosion = skin.assetUrl('explosion.gif');
-  skin.explosionThumbnail = skin.assetUrl('explosion_thumb.png');
+
   skin.whenUp = skin.assetUrl('when-up.png');
   skin.whenDown = skin.assetUrl('when-down.png');
   skin.whenLeft = skin.assetUrl('when-left.png');

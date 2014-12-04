@@ -811,7 +811,7 @@ function checkForCollisions() {
 }
 
 Studio.onSvgDrag = function(e) {
-  if (Studio.intervalId) {
+  if (Studio.tickCount > 0) {
     Studio.gesturesObserved[e.gesture.direction] =
       Math.round(e.gesture.distance / DRAG_DISTANCE_TO_MOVE_RATIO);
     e.gesture.preventDefault();
@@ -823,7 +823,7 @@ Studio.onKey = function(e) {
   Studio.keyState[e.keyCode] = e.type;
 
   // If we are actively running our tick loop, suppress default event handling
-  if (Studio.intervalId &&
+  if (Studio.tickCount > 0 &&
       e.keyCode >= Keycodes.LEFT && e.keyCode <= Keycodes.DOWN) {
     e.preventDefault();
   }
@@ -837,7 +837,7 @@ Studio.onArrowButtonDown = function(e, idBtn) {
 
 Studio.onSpriteClicked = function(e, spriteIndex) {
   // If we are "running", call the event handler if registered.
-  if (Studio.intervalId) {
+  if (Studio.tickCount > 0) {
     callHandler('whenSpriteClicked-' + spriteIndex);
   }
   e.preventDefault();  // Stop normal events.
@@ -845,7 +845,7 @@ Studio.onSpriteClicked = function(e, spriteIndex) {
 
 Studio.onSvgClicked = function(e) {
   // If we are "running", check the cmdQueues.
-  if (Studio.intervalId) {
+  if (Studio.tickCount > 0) {
     // Check the first command in all of the cmdQueues to see if there is a
     // pending "wait for click" command
     Studio.eventHandlers.forEach(function (handler) {
@@ -1132,11 +1132,13 @@ Studio.clearEventHandlersKillTickLoop = function() {
     });
   }
   Studio.eventHandlers = [];
-  if (Studio.intervalId) {
-    window.clearInterval(Studio.intervalId);
+  if (Studio.perExecutionTimeouts) {
+    Studio.perExecutionTimeouts.forEach(function (timeout) {
+      clearInterval(timeout);
+    });
   }
+  Studio.perExecutionTimeouts = [];
   Studio.tickCount = 0;
-  Studio.intervalId = 0;
   for (var i = 0; i < Studio.spriteCount; i++) {
     if (Studio.sprite[i] && Studio.sprite[i].bubbleTimeout) {
       window.clearTimeout(Studio.sprite[i].bubbleTimeout);
@@ -1237,6 +1239,13 @@ StudioApp.reset = function(first) {
     Studio.displaySprite(i);
     document.getElementById('speechBubble' + i)
       .setAttribute('visibility', 'hidden');
+
+    document.getElementById('sprite' + i).removeAttribute('opacity');
+
+    var explosion = document.getElementById('explosion' + i);
+    if (explosion) {
+      explosion.setAttribute('visibility', 'hidden');
+    }
   }
 
   var svg = document.getElementById('svgStudio');
@@ -1535,8 +1544,8 @@ Studio.execute = function() {
     // Set event handlers and start the onTick timer
     Studio.eventHandlers = handlers;
   }
-
-  Studio.intervalId = window.setInterval(Studio.onTick, Studio.scale.stepSpeed);
+  Studio.perExecutionTimeouts = [];
+  Studio.perExecutionTimeouts.push(window.setInterval(Studio.onTick, Studio.scale.stepSpeed));
 };
 
 Studio.feedbackImage = '';
@@ -1688,6 +1697,12 @@ var updateSpeechBubblePath = function (element) {
 
 Studio.displaySprite = function(i) {
   var sprite = Studio.sprite[i];
+
+  // avoid lots of unnecessary changes to hidden sprites
+  if (sprite.value === 'hidden') {
+    return;
+  }
+
   var xOffset = sprite.width * spriteFrameNumber(i);
 
   var spriteIcon = document.getElementById('sprite' + i);
@@ -1945,13 +1960,36 @@ Studio.vanishActor = function (opts) {
   explosion.setAttribute('y', spriteClipRect.getAttribute('y'));
   explosion.setAttribute('visibility', 'visible');
 
-  // hide the sprite
-  Studio.setSprite({
-    spriteIndex: opts.spriteIndex,
-    value: 'hidden'
-  });
+  var baseX = parseInt(spriteClipRect.getAttribute('x'), 10);
+  var numFrames = skin.explosionFrames;
+  if (numFrames && numFrames > 1) {
+    explosion.setAttribute('clip-path', 'url(#spriteClipPath' + opts.spriteIndex + ')');
+    explosion.setAttribute('width', numFrames * 100);
+    _.range(0, numFrames).forEach(function (i) {
+      Studio.perExecutionTimeouts.push(setTimeout(function () {
+        explosion.setAttribute('x', baseX - i * 100);
+        sprite.setAttribute('opacity', (numFrames - i) / numFrames);
+      }, i * 100));
+    });
+    Studio.perExecutionTimeouts.push(setTimeout(function () {
+      explosion.setAttribute('visibility', 'hidden');
+      // hide the sprite
+      Studio.setSprite({
+        spriteIndex: opts.spriteIndex,
+        value: 'hidden'
+      });
+      sprite.removeAttribute('opacity');
+
+    }, 100 * (numFrames + 1)));
+  } else {
+    // hide the sprite
+    Studio.setSprite({
+      spriteIndex: opts.spriteIndex,
+      value: 'hidden'
+    });
+  }
   // we append the url with the spriteIndex so that each sprites explosion gets
-  // treated as being differently, otherwise chrome will animate all existing
+  // treated as being different, otherwise chrome will animate all existing
   // explosions anytime we try to animate one of them
   explosion.setAttributeNS('http://www.w3.org/1999/xlink',
     'xlink:href', skin.explosion + "?spriteIndex=" + opts.spriteIndex);
