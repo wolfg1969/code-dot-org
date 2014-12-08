@@ -1862,6 +1862,14 @@ Studio.callCmd = function (cmd) {
       BlocklyApps.highlight(cmd.id);
       Studio.setSpriteXY(cmd.opts);
       break;
+    case 'getSpriteX':
+      BlocklyApps.highlight(cmd.id);
+      Studio.getSpriteX(cmd.opts);
+      break;
+    case 'getSpriteY':
+      BlocklyApps.highlight(cmd.id);
+      Studio.getSpriteY(cmd.opts);
+      break;
     case 'playSound':
       StudioApp.highlight(cmd.id);
       StudioApp.playAudio(cmd.opts.soundName, { volume: 1.0 });
@@ -2517,6 +2525,14 @@ Studio.setSpriteXY = function (opts) {
   // Reset to "no direction" so no turn animation will take place
   sprite.dir = Direction.NONE;
 };
+
+Studio.getSpriteX = function (opts) {
+  return Studio.sprite[opts.spriteIndex].x;
+}
+
+Studio.getSpriteY = function (opts) {
+  return Studio.sprite[opts.spriteIndex].y;
+}
 
 Studio.moveSingle = function (opts) {
   var sprite = Studio.sprite[opts.spriteIndex];
