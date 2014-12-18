@@ -240,7 +240,7 @@ module.exports = function(app, levels, options) {
 };
 
 }).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./base":3,"./blocksCommon":5,"./dom":10,"./required_block_utils":32,"./utils":48}],3:[function(require,module,exports){
+},{"./base":3,"./blocksCommon":5,"./dom":10,"./required_block_utils":31,"./utils":47}],3:[function(require,module,exports){
 /**
  * Blockly Apps: Common code
  *
@@ -303,8 +303,13 @@ BlocklyApps.LOCALE = 'en_us';
  */
 BlocklyApps.MIN_WIDTH = 900;
 BlocklyApps.MIN_MOBILE_SHARE_WIDTH = 450;
-BlocklyApps.MIN_MOBILE_NO_PADDING_SHARE_WIDTH = 400;
+BlocklyApps.MOBILE_NO_PADDING_SHARE_WIDTH = 400;
 var WORKSPACE_PLAYSPACE_GAP = 15;
+
+/**
+ * Treat mobile devices with screen.width less than the value below as phones.
+ */
+BlocklyApps.MAX_PHONE_WIDTH = 500;
 
 /**
  * If the user presses backspace, stop propagation - this prevents blockly
@@ -417,6 +422,7 @@ BlocklyApps.init = function(config) {
   }
 
   var visualizationColumn = document.getElementById('visualizationColumn');
+  var visualization = document.getElementById('visualization');
 
   // center game screen in embed mode
   if(config.embed) {
@@ -443,7 +449,6 @@ BlocklyApps.init = function(config) {
 
   if (!config.embed && !BlocklyApps.share) {
     // Make the visualization responsive to screen size, except on share page.
-    var visualization = document.getElementById('visualization');
     visualization.className += " responsive";
     visualizationColumn.className += " responsive";
   }
@@ -495,26 +500,31 @@ BlocklyApps.init = function(config) {
     }
     var belowVisualization = document.getElementById('belowVisualization');
     if (belowVisualization) {
-      belowVisualization.style.display = 'block';
-      belowVisualization.style.marginLeft = '0px';
-      if (BlocklyApps.noPadding) {
-        // Shift run and reset buttons off the left edge if we have no padding
-        if (runButton) {
-          runButton.style.marginLeft = '10px';
-        }
-        if (resetButton) {
-          resetButton.style.marginLeft = '10px';
-        }
-        var shareCell = document.getElementById('share-cell') ||
-            document.getElementById('right-button-cell');
-        if (shareCell) {
-          shareCell.style.marginLeft = '10px';
-          shareCell.style.marginRight = '10px';
-        }
-        var softButtons = document.getElementById('soft-buttons');
-        if (softButtons) {
-          softButtons.style.marginLeft = '10px';
-          softButtons.style.marginRight = '10px';
+      if (config.noButtonsBelowOnMobileShare) {
+        belowVisualization.style.display = 'none';
+        visualization.style.marginBottom = '0px';
+      } else {
+        belowVisualization.style.display = 'block';
+        belowVisualization.style.marginLeft = '0px';
+        if (BlocklyApps.noPadding) {
+          // Shift run and reset buttons off the left edge if we have no padding
+          if (runButton) {
+            runButton.style.marginLeft = '10px';
+          }
+          if (resetButton) {
+            resetButton.style.marginLeft = '10px';
+          }
+          var shareCell = document.getElementById('share-cell') ||
+              document.getElementById('right-button-cell');
+          if (shareCell) {
+            shareCell.style.marginLeft = '10px';
+            shareCell.style.marginRight = '10px';
+          }
+          var softButtons = document.getElementById('soft-buttons');
+          if (softButtons) {
+            softButtons.style.marginLeft = '10px';
+            softButtons.style.marginRight = '10px';
+          }
         }
       }
     }
@@ -534,10 +544,11 @@ BlocklyApps.init = function(config) {
       if (BlocklyApps.noPadding) {
         upSale.style.marginLeft = '10px';
       }
-    } else {
+      belowViz.appendChild(upSale);
+    } else if (typeof config.makeYourOwn === 'undefined') {
       upSale.innerHTML = require('./templates/learn.html')();
+      belowViz.appendChild(upSale);
     }
-    belowViz.appendChild(upSale);
   }
 
   // Record time at initialization.
@@ -546,22 +557,27 @@ BlocklyApps.init = function(config) {
   // Fixes viewport for small screens.
   var viewport = document.querySelector('meta[name="viewport"]');
   if (viewport) {
-    var widthDimension;
+    var deviceWidth;
+    var desiredWidth;
     var minWidth;
     if (BlocklyApps.share && dom.isMobile()) {
       // for mobile sharing, don't assume landscape mode, use screen.width
-      widthDimension = screen.width;
+      deviceWidth = desiredWidth = screen.width;
+      if (BlocklyApps.noPadding && screen.width < BlocklyApps.MAX_PHONE_WIDTH) {
+        desiredWidth = Math.min(desiredWidth,
+                                BlocklyApps.MOBILE_NO_PADDING_SHARE_WIDTH);
+      }
       minWidth = BlocklyApps.noPadding ?
-                    BlocklyApps.MIN_MOBILE_NO_PADDING_SHARE_WIDTH :
+                    BlocklyApps.MOBILE_NO_PADDING_SHARE_WIDTH :
                     BlocklyApps.MIN_MOBILE_SHARE_WIDTH;
     }
     else {
       // assume we are in landscape mode, so width is the longer of the two
-      widthDimension = Math.max(screen.width, screen.height);
+      deviceWidth = desiredWidth = Math.max(screen.width, screen.height);
       minWidth = BlocklyApps.MIN_WIDTH;
     }
-    var width = Math.max(minWidth, widthDimension);
-    var scale = widthDimension / width;
+    var width = Math.max(minWidth, desiredWidth);
+    var scale = deviceWidth / width;
     var content = ['width=' + width,
                    'minimal-ui',
                    'initial-scale=' + scale,
@@ -623,7 +639,7 @@ BlocklyApps.init = function(config) {
       var vizCol = document.getElementById('visualizationColumn');
       var width = vizCol.offsetWidth;
       var height = vizCol.offsetHeight;
-      var displayWidth = BlocklyApps.MIN_MOBILE_NO_PADDING_SHARE_WIDTH;
+      var displayWidth = BlocklyApps.MOBILE_NO_PADDING_SHARE_WIDTH;
       var scale = Math.min(width / displayWidth, height / displayWidth);
       var viz = document.getElementById('visualization');
       viz.style['transform-origin'] = 'left top';
@@ -696,18 +712,6 @@ BlocklyApps.init = function(config) {
 
       if (config.level.startBlocks) {
         BlocklyApps.editor.setValue(config.level.startBlocks);
-      } else {
-        var startText = '// ' + msg.typeHint() + '\n';
-        var codeFunctions = config.level.codeFunctions;
-        // Insert hint text from level codeFunctions into editCode area
-        if (codeFunctions) {
-          var hintText = '';
-          for (var i = 0; i < codeFunctions.length; i++) {
-            hintText += " " + codeFunctions[i].func + "();";
-          }
-          startText += '// ' + msg.typeFuncs().replace('%1', hintText) + '\n';
-        }
-        BlocklyApps.editor.setValue(startText);
       }
     });
   }
@@ -745,8 +749,6 @@ BlocklyApps.init = function(config) {
           false : config.level.useModalFunctionEditor,
       useContractEditor: config.level.useContractEditor === undefined ?
           false : config.level.useContractEditor,
-      defaultNumExampleBlocks: config.level.defaultNumExampleBlocks === undefined ?
-          0 : config.level.defaultNumExampleBlocks,
       scrollbars: config.level.scrollbars,
       editBlocks: config.level.edit_blocks === undefined ?
           false : config.level.edit_blocks
@@ -1328,7 +1330,7 @@ var getIdealBlockNumberMsg = function() {
       msg.infinity() : BlocklyApps.IDEAL_BLOCK_NUM;
 };
 
-},{"../locale/ru_ru/common":50,"./ResizeSensor":1,"./block_utils":4,"./builder":6,"./constants.js":9,"./dom":10,"./feedback.js":28,"./slider":35,"./templates/buttons.html":37,"./templates/instructions.html":39,"./templates/learn.html":40,"./templates/makeYourOwn.html":41,"./utils":48,"./xml":49}],4:[function(require,module,exports){
+},{"../locale/ru_ru/common":49,"./ResizeSensor":1,"./block_utils":4,"./builder":6,"./constants.js":9,"./dom":10,"./feedback.js":27,"./slider":34,"./templates/buttons.html":36,"./templates/instructions.html":38,"./templates/learn.html":39,"./templates/makeYourOwn.html":40,"./utils":47,"./xml":48}],4:[function(require,module,exports){
 var xml = require('./xml');
 
 exports.createToolbox = function(blocks) {
@@ -1529,7 +1531,7 @@ exports.mathBlockXml = function (type, inputs, titles) {
   return str;
 };
 
-},{"./xml":49}],5:[function(require,module,exports){
+},{"./xml":48}],5:[function(require,module,exports){
 /**
  * Defines blocks useful in multiple blockly apps
  */
@@ -1694,7 +1696,7 @@ function installWhenRun(blockly, skin, isK1) {
   };
 }
 
-},{"../locale/ru_ru/common":50}],6:[function(require,module,exports){
+},{"../locale/ru_ru/common":49}],6:[function(require,module,exports){
 var feedback = require('./feedback.js');
 var dom = require('./dom.js');
 var utils = require('./utils.js');
@@ -1724,7 +1726,7 @@ exports.builderForm = function(onAttemptCallback) {
   dialog.show({ backdrop: 'static' });
 };
 
-},{"./dom.js":10,"./feedback.js":28,"./templates/builder.html":36,"./utils.js":48,"url":62}],7:[function(require,module,exports){
+},{"./dom.js":10,"./feedback.js":27,"./templates/builder.html":35,"./utils.js":47,"url":61}],7:[function(require,module,exports){
 /*
  * canvg.js - Javascript SVG parser and renderer on Canvas
  * MIT Licensed 
@@ -4749,7 +4751,7 @@ exports.workspaceCode = function(blockly) {
 exports.marshalNativeToInterpreter = function (interpreter, nativeVar, nativeParentObj, maxDepth) {
   var retVal;
   if (typeof maxDepth === "undefined") {
-    maxDepth = 4; // default to 4 levels of depth
+    maxDepth = Infinity; // default to inifinite levels of depth
   }
   if (maxDepth === 0) {
     return interpreter.createPrimitive(undefined);
@@ -4797,11 +4799,11 @@ exports.marshalNativeToInterpreter = function (interpreter, nativeVar, nativePar
 /**
  * Generate a native function wrapper for use with the JS interpreter.
  */
-exports.makeNativeMemberFunction = function (interpreter, nativeFunc, nativeParentObj) {
+exports.makeNativeMemberFunction = function (interpreter, nativeFunc, nativeParentObj, maxDepth) {
   return function() {
     // Call the native function:
     var nativeRetVal = nativeFunc.apply(nativeParentObj, arguments);
-    return exports.marshalNativeToInterpreter(interpreter, nativeRetVal, null);
+    return exports.marshalNativeToInterpreter(interpreter, nativeRetVal, null, maxDepth);
   };
 };
 
@@ -5196,7 +5198,6 @@ var EvalRect = require('./evalRect');
 var EvalEllipse = require('./evalEllipse');
 var EvalText = require('./evalText');
 var EvalStar = require('./evalStar');
-var EvalPolygon = require('./evalPolygon');
 
 // We don't use blockId at all in Eval since everything is evaluated at once.
 
@@ -5251,10 +5252,6 @@ exports.radialStar = function (points, inner, outer, style, color) {
   return new EvalStar(points, inner, outer, style, color);
 };
 
-exports.polygon = function (points, length, style, color) {
-  return new EvalPolygon(points, length, style, color);
-};
-
 exports.placeImage = function (x, y, image) {
   evalUtils.ensureNumber(x);
   evalUtils.ensureNumber(y);
@@ -5306,7 +5303,7 @@ exports.stringLength = function (str) {
   return str.length;
 };
 
-},{"./evalCircle":15,"./evalEllipse":16,"./evalImage":17,"./evalMulti":18,"./evalPolygon":19,"./evalRect":20,"./evalStar":21,"./evalText":22,"./evalTriangle":23,"./evalUtils":24}],12:[function(require,module,exports){
+},{"./evalCircle":15,"./evalEllipse":16,"./evalImage":17,"./evalMulti":18,"./evalRect":19,"./evalStar":20,"./evalText":21,"./evalTriangle":22,"./evalUtils":23}],12:[function(require,module,exports){
 /**
  * Blockly Demo: Eval Graphics
  *
@@ -5442,18 +5439,6 @@ exports.install = function(blockly, blockInstallOptions) {
       { name: 'POINTS', type: 'Number' },
       { name: 'INNER', type: 'Number' },
       { name: 'OUTER', type: 'Number' },
-      { name: 'STYLE', type: 'string' },
-      { name: 'COLOR', type: 'string' }
-    ]
-  });
-
-  installFunctionalBlock(blockly, generator, gensym, {
-    blockName: 'functional_polygon',
-    blockTitle: msg.polygonBlockTitle(),
-    apiName: 'polygon',
-    args: [
-      { name: 'SIDES', type: 'Number' },
-      { name: 'LENGTH', type: 'Number' },
       { name: 'STYLE', type: 'string' },
       { name: 'COLOR', type: 'string' }
     ]
@@ -5604,7 +5589,7 @@ function installFunctionalBlock (blockly, generator, gensym, options) {
   };
 }
 
-},{"../../locale/ru_ru/common":50,"../../locale/ru_ru/eval":51,"../functionalBlockUtils":29,"../sharedFunctionalBlocks":33,"./evalUtils":24}],13:[function(require,module,exports){
+},{"../../locale/ru_ru/common":49,"../../locale/ru_ru/eval":50,"../functionalBlockUtils":28,"../sharedFunctionalBlocks":32,"./evalUtils":23}],13:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -5628,7 +5613,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"../../locale/ru_ru/common":50,"../../locale/ru_ru/eval":51,"ejs":52}],14:[function(require,module,exports){
+},{"../../locale/ru_ru/common":49,"../../locale/ru_ru/eval":50,"ejs":51}],14:[function(require,module,exports){
 (function (global){
 /**
  * Blockly Demo: Eval Graphics
@@ -5938,7 +5923,7 @@ function onReportComplete(response) {
 }
 
 }).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../../locale/ru_ru/common":50,"../../locale/ru_ru/eval":51,"../base":3,"../block_utils":4,"../canvg/canvg.js":7,"../codegen":8,"../constants":9,"../dom":10,"../feedback.js":28,"../skins":34,"../templates/page.html":42,"./api":11,"./controls.html":13,"./levels":25,"./visualization.html":27}],15:[function(require,module,exports){
+},{"../../locale/ru_ru/common":49,"../../locale/ru_ru/eval":50,"../base":3,"../block_utils":4,"../canvg/canvg.js":7,"../codegen":8,"../constants":9,"../dom":10,"../feedback.js":27,"../skins":33,"../templates/page.html":41,"./api":11,"./controls.html":13,"./levels":24,"./visualization.html":26}],15:[function(require,module,exports){
 var EvalImage = require('./evalImage');
 var evalUtils = require('./evalUtils');
 
@@ -5973,7 +5958,7 @@ EvalCircle.prototype.rotate = function () {
   // a bitmap.
 };
 
-},{"./evalImage":17,"./evalUtils":24}],16:[function(require,module,exports){
+},{"./evalImage":17,"./evalUtils":23}],16:[function(require,module,exports){
 var EvalImage = require('./evalImage');
 var evalUtils = require('./evalUtils');
 
@@ -6006,7 +5991,7 @@ EvalCircle.prototype.draw = function (parent) {
   EvalImage.prototype.draw.apply(this, arguments);
 };
 
-},{"./evalImage":17,"./evalUtils":24}],17:[function(require,module,exports){
+},{"./evalImage":17,"./evalUtils":23}],17:[function(require,module,exports){
 var evalUtils = require('./evalUtils');
 
 var EvalImage = function (style, color) {
@@ -6067,7 +6052,7 @@ EvalImage.prototype.scale = function (scaleX, scaleY) {
   this.scaleY_ = scaleY;
 };
 
-},{"./evalUtils":24}],18:[function(require,module,exports){
+},{"./evalUtils":23}],18:[function(require,module,exports){
 var EvalImage = require('./evalImage');
 var evalUtils = require('./evalUtils');
 
@@ -6110,46 +6095,7 @@ EvalMulti.prototype.draw = function (parent) {
   EvalImage.prototype.draw.apply(this, arguments);
 };
 
-},{"./evalImage":17,"./evalUtils":24}],19:[function(require,module,exports){
-var EvalImage = require('./evalImage');
-var evalUtils = require('./evalUtils');
-
-var EvalPolygon = function (sideCount, length, style, color) {
-  evalUtils.ensureNumber(sideCount);
-  evalUtils.ensureNumber(length);
-  evalUtils.ensureString(style);
-  evalUtils.ensureString(color);
-
-  EvalImage.apply(this, [style, color]);
-
-  this.radius_ = length / (2 * Math.sin(Math.PI / sideCount));
-  this.pointCount_ = sideCount;
-
-  this.element_ = null;
-};
-EvalPolygon.inherits(EvalImage);
-module.exports = EvalPolygon;
-
-EvalPolygon.prototype.draw = function (parent) {
-  if (!this.element_) {
-    this.element_ = document.createElementNS(Blockly.SVG_NS, 'polygon');
-    parent.appendChild(this.element_);
-  }
-
-  var points = [];
-  var radius = this.radius_;
-
-  var angle = 2 * Math.PI / this.pointCount_;
-  for (var i = 1; i <= this.pointCount_; i++) {
-    points.push(radius * Math.cos(i * angle) + "," + radius * Math.sin(i * angle));
-  }
-
-  this.element_.setAttribute('points', points.join(' '));
-
-  EvalImage.prototype.draw.apply(this, arguments);
-};
-
-},{"./evalImage":17,"./evalUtils":24}],20:[function(require,module,exports){
+},{"./evalImage":17,"./evalUtils":23}],19:[function(require,module,exports){
 var EvalImage = require('./evalImage');
 var evalUtils = require('./evalUtils');
 
@@ -6184,7 +6130,7 @@ EvalRect.prototype.draw = function (parent) {
   EvalImage.prototype.draw.apply(this, arguments);
 };
 
-},{"./evalImage":17,"./evalUtils":24}],21:[function(require,module,exports){
+},{"./evalImage":17,"./evalUtils":23}],20:[function(require,module,exports){
 var EvalImage = require('./evalImage');
 var evalUtils = require('./evalUtils');
 
@@ -6231,7 +6177,7 @@ EvalStar.prototype.draw = function (parent) {
   EvalImage.prototype.draw.apply(this, arguments);
 };
 
-},{"./evalImage":17,"./evalUtils":24}],22:[function(require,module,exports){
+},{"./evalImage":17,"./evalUtils":23}],21:[function(require,module,exports){
 var EvalImage = require('./evalImage');
 var evalUtils = require('./evalUtils');
 
@@ -6266,7 +6212,7 @@ EvalText.prototype.draw = function (parent) {
   EvalImage.prototype.draw.apply(this, arguments);
 };
 
-},{"./evalImage":17,"./evalUtils":24}],23:[function(require,module,exports){
+},{"./evalImage":17,"./evalUtils":23}],22:[function(require,module,exports){
 var EvalImage = require('./evalImage');
 var evalUtils = require('./evalUtils');
 
@@ -6317,7 +6263,7 @@ EvalTriangle.prototype.draw = function (parent) {
   EvalImage.prototype.draw.apply(this, arguments);
 };
 
-},{"./evalImage":17,"./evalUtils":24}],24:[function(require,module,exports){
+},{"./evalImage":17,"./evalUtils":23}],23:[function(require,module,exports){
 /**
  * Throws an expection if val is not of the expected type. Type is either a
  * string (like "number" or "string") or an object (Like EvalImage).
@@ -6378,7 +6324,7 @@ module.exports.cartesianToPixel = function (cartesianY) {
   return 400 - cartesianY;
 };
 
-},{}],25:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 var msg = require('../../locale/ru_ru/eval');
 var blockUtils = require('../block_utils');
 
@@ -6408,7 +6354,6 @@ module.exports = {
       blockUtils.blockOfType('functional_ellipse') +
       blockUtils.blockOfType('functional_star') +
       blockUtils.blockOfType('functional_radial_star') +
-      blockUtils.blockOfType('functional_polygon') +
       blockUtils.blockOfType('place_image') +
       blockUtils.blockOfType('offset') +
       blockUtils.blockOfType('overlay') +
@@ -6446,7 +6391,7 @@ module.exports = {
   }
 };
 
-},{"../../locale/ru_ru/eval":51,"../block_utils":4}],26:[function(require,module,exports){
+},{"../../locale/ru_ru/eval":50,"../block_utils":4}],25:[function(require,module,exports){
 var appMain = require('../appMain');
 window.Eval = require('./eval');
 var blocks = require('./blocks');
@@ -6459,7 +6404,7 @@ window.evalMain = function(options) {
   appMain(window.Eval, levels, options);
 };
 
-},{"../appMain":2,"../skins":34,"./blocks":12,"./eval":14,"./levels":25}],27:[function(require,module,exports){
+},{"../appMain":2,"../skins":33,"./blocks":12,"./eval":14,"./levels":24}],26:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -6480,7 +6425,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"ejs":52}],28:[function(require,module,exports){
+},{"ejs":51}],27:[function(require,module,exports){
 var trophy = require('./templates/trophy.html');
 var utils = require('./utils');
 var readonly = require('./templates/readonly.html');
@@ -6994,7 +6939,7 @@ exports.createSharingDiv = function(options) {
   if (sharingShapeways) {
     dom.addClickTouchEvent(sharingShapeways, function() {
       $('#send-to-phone').hide();
-      $('#shapeways-message').toggle();
+      $('#shapeways-message').show();
     });
   }
 
@@ -7558,7 +7503,6 @@ function hasUnusedParam() {
       // Unused param if there's no parameters_get descendant with the same name
       return !hasMatchingDescendant(userBlock, function(block) {
         return (block.type === 'parameters_get' ||
-            block.type === 'functional_parameters_get' ||
             block.type === 'variables_get') &&
             block.getTitleValue('VAR') === paramName;
       });
@@ -7635,7 +7579,7 @@ function hasMatchingDescendant(node, filter) {
 }
 
 
-},{"../locale/ru_ru/common":50,"./codegen":8,"./constants":9,"./dom":10,"./templates/buttons.html":37,"./templates/code.html":38,"./templates/readonly.html":43,"./templates/shareFailure.html":44,"./templates/sharing.html":45,"./templates/showCode.html":46,"./templates/trophy.html":47,"./utils":48,"./xml":49}],29:[function(require,module,exports){
+},{"../locale/ru_ru/common":49,"./codegen":8,"./constants":9,"./dom":10,"./templates/buttons.html":36,"./templates/code.html":37,"./templates/readonly.html":42,"./templates/shareFailure.html":43,"./templates/sharing.html":44,"./templates/showCode.html":45,"./templates/trophy.html":46,"./utils":47,"./xml":48}],28:[function(require,module,exports){
 var utils = require('./utils');
 var _ = utils.getLodash();
 
@@ -7779,7 +7723,7 @@ module.exports.installStringPicker = function(blockly, generator, options) {
   };
 };
 
-},{"./utils":48}],30:[function(require,module,exports){
+},{"./utils":47}],29:[function(require,module,exports){
 /*! Hammer.JS - v1.1.3 - 2014-05-22
  * http://eightmedia.github.io/hammer.js
  *
@@ -9943,7 +9887,7 @@ if(typeof define == 'function' && define.amd) {
 }
 
 })(window);
-},{}],31:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 (function (global){
 /**
  * @license
@@ -12870,7 +12814,7 @@ if(typeof define == 'function' && define.amd) {
 }.call(this));
 
 }).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],32:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 var xml = require('./xml');
 var blockUtils = require('./block_utils');
 var utils = require('./utils');
@@ -13148,7 +13092,7 @@ var titlesMatch = function(titleA, titleB) {
     titleB.getValue() === titleA.getValue();
 };
 
-},{"../locale/ru_ru/common":50,"./block_utils":4,"./utils":48,"./xml":49}],33:[function(require,module,exports){
+},{"../locale/ru_ru/common":49,"./block_utils":4,"./utils":47,"./xml":48}],32:[function(require,module,exports){
 /**
  * A set of functional blocks
  */
@@ -13517,7 +13461,7 @@ function installCond(blockly, generator, numPairs) {
   };
 }
 
-},{"../locale/ru_ru/common":50,"./functionalBlockUtils":29}],34:[function(require,module,exports){
+},{"../locale/ru_ru/common":49,"./functionalBlockUtils":28}],33:[function(require,module,exports){
 // avatar: A 1029x51 set of 21 avatar images.
 
 exports.load = function(assetUrl, id) {
@@ -13591,7 +13535,7 @@ exports.load = function(assetUrl, id) {
   return skin;
 };
 
-},{}],35:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 /**
  * Blockly Apps: SVG Slider
  *
@@ -13671,9 +13615,6 @@ var Slider = function(x, y, width, svgParent, opt_changeFunc) {
   dom.addMouseDownTouchEvent(this.knob_, function(e) {
     return thisSlider.knobMouseDown_(e);
   });
-  dom.addMouseDownTouchEvent(this.track_, function(e) {
-    return thisSlider.trackMouseDown_(e);
-  });
   dom.addMouseUpTouchEvent(this.SVG_, Slider.knobMouseUp_);
   dom.addMouseMoveTouchEvent(this.SVG_, Slider.knobMouseMove_);
   // Don't add touch events for mouseover. The UX is better on Android
@@ -13694,37 +13635,8 @@ Slider.startKnobX_ = 0;
  * @private
  */
 Slider.prototype.knobMouseDown_ = function(e) {
-  this.beginDrag_(this.mouseToSvg_(e));
-
-  // Stop browser from attempting to drag the knob.
-  e.preventDefault();
-  return false;
-};
-
-/**
- * Snap the knob to the mouse location and start a drag
- * when clicking on the track (but not on the knob).
- * @param {!Event} e Mouse-down event.
- * @private
- */
-Slider.prototype.trackMouseDown_ = function(e) {
-  var mouseSVGPosition = this.mouseToSvg_(e);
-  this.snapToPosition_(mouseSVGPosition.x);
-  this.beginDrag_(mouseSVGPosition);
-
-  // Stop browser from attempting to drag the track.
-  e.preventDefault();
-  return false;
-};
-
-/**
- * Start dragging the slider knob.
- * @param {!Object} mouseStartSVG Mouse start position in SVG space
- * @private
- */
-Slider.prototype.beginDrag_ = function(startMouseSVG) {
   Slider.activeSlider_ = this;
-  Slider.startMouseX_ = startMouseSVG.x;
+  Slider.startMouseX_ = this.mouseToSvg_(e).x;
   Slider.startKnobX_ = 0;
   var transform = this.knob_.getAttribute('transform');
   if (transform) {
@@ -13733,24 +13645,9 @@ Slider.prototype.beginDrag_ = function(startMouseSVG) {
       Slider.startKnobX_ = Number(r[1]);
     }
   }
-};
-
-/**
- * Snap the slider knob to the clicked position.
- * @param {number} xPosition SVG x-coordinate
- * @private
- */
-Slider.prototype.snapToPosition_ = function(xPosition) {
-  var x = Math.min(Math.max(xPosition, 
-        this.KNOB_MIN_X_), this.KNOB_MAX_X_);
-  this.knob_.setAttribute('transform',
-      'translate(' + x + ',' + this.KNOB_Y_ + ')');
-
-  this.value_ = (x - this.KNOB_MIN_X_) /
-      (this.KNOB_MAX_X_ - this.KNOB_MIN_X_);
-  if (this.changeFunc_) {
-    this.changeFunc_(this.value_);
-  }
+  // Stop browser from attempting to drag the knob.
+  e.preventDefault();
+  return false;
 };
 
 /**
@@ -13792,7 +13689,15 @@ Slider.knobMouseMove_ = function(e) {
   }
   var x = thisSlider.mouseToSvg_(e).x - Slider.startMouseX_ +
       Slider.startKnobX_;
-  thisSlider.snapToPosition_(x);
+  x = Math.min(Math.max(x, thisSlider.KNOB_MIN_X_), thisSlider.KNOB_MAX_X_);
+  thisSlider.knob_.setAttribute('transform',
+      'translate(' + x + ',' + thisSlider.KNOB_Y_ + ')');
+
+  thisSlider.value_ = (x - thisSlider.KNOB_MIN_X_) /
+      (thisSlider.KNOB_MAX_X_ - thisSlider.KNOB_MIN_X_);
+  if (thisSlider.changeFunc_) {
+    thisSlider.changeFunc_(thisSlider.value_);
+  }
 };
 
 /**
@@ -13856,7 +13761,7 @@ Slider.bindEvent_ = function(element, name, func) {
 
 module.exports = Slider;
 
-},{"./dom":10}],36:[function(require,module,exports){
+},{"./dom":10}],35:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -13877,7 +13782,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"ejs":52}],37:[function(require,module,exports){
+},{"ejs":51}],36:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -13898,7 +13803,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"../../locale/ru_ru/common":50,"ejs":52}],38:[function(require,module,exports){
+},{"../../locale/ru_ru/common":49,"ejs":51}],37:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -13919,7 +13824,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"ejs":52}],39:[function(require,module,exports){
+},{"ejs":51}],38:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -13940,7 +13845,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"../../locale/ru_ru/common":50,"ejs":52}],40:[function(require,module,exports){
+},{"../../locale/ru_ru/common":49,"ejs":51}],39:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -13963,7 +13868,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"../../locale/ru_ru/common":50,"ejs":52}],41:[function(require,module,exports){
+},{"../../locale/ru_ru/common":49,"ejs":51}],40:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -13984,7 +13889,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"../../locale/ru_ru/common":50,"ejs":52}],42:[function(require,module,exports){
+},{"../../locale/ru_ru/common":49,"ejs":51}],41:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -14001,7 +13906,7 @@ with (locals || {}) { (function(){
   var msg = require('../../locale/ru_ru/common');
   var hideRunButton = locals.hideRunButton || false;
 ; buf.push('\n\n<div id="rotateContainer" style="background-image: url(', escape((6,  assetUrl('media/mobile_tutorial_turnphone.png') )), ')">\n  <div id="rotateText">\n    <p>', escape((8,  msg.rotateText() )), '<br>', escape((8,  msg.orientationLock() )), '</p>\n  </div>\n</div>\n\n');12; var instructions = function() {; buf.push('  <div id="bubble" class="clearfix">\n    <table id="prompt-table">\n      <tr>\n        <td id="prompt-icon-cell">\n          <img id="prompt-icon"/>\n        </td>\n        <td id="prompt-cell">\n          <p id="prompt">\n          </p>\n        </td>\n      </tr>\n    </table>\n    <div id="ani-gif-preview-wrapper">\n      <div id="ani-gif-preview">\n        <img id="play-button" src="', escape((26,  assetUrl('media/play-circle.png') )), '"/>\n      </div>\n    </div>\n  </div>\n');30; };; buf.push('\n');31; // A spot for the server to inject some HTML for help content.
-var helpArea = function(html) {; buf.push('  ');32; if (html) {; buf.push('    <div id="helpArea">\n      ', (33,  html ), '\n    </div>\n  ');35; }; buf.push('');35; };; buf.push('\n<div id="visualizationColumn">\n  <div id="visualization">\n    ', (38,  data.visualization ), '\n  </div>\n\n  <div id="belowVisualization">\n\n    <div id="gameButtons">\n      <button id="runButton" class="launch blocklyLaunch ', escape((44,  hideRunButton ? 'invisible' : '')), '">\n        <div>', escape((45,  msg.runProgram() )), '</div>\n        <img src="', escape((46,  assetUrl('media/1x1.gif') )), '" class="run26"/>\n      </button>\n      <button id="resetButton" class="launch blocklyLaunch" style="display: none">\n        <div>', escape((49,  msg.resetProgram() )), '</div>\n        <img src="', escape((50,  assetUrl('media/1x1.gif') )), '" class="reset26"/>\n      </button>\n      ');52; if (data.controls) { ; buf.push('\n      ', (53,  data.controls ), '\n      ');54; } ; buf.push('\n      ');55; if (data.extraControlRows) { ; buf.push('\n      ', (56,  data.extraControlRows ), '\n      ');57; } ; buf.push('\n    </div>\n\n    ');60; instructions() ; buf.push('\n    ');61; helpArea(data.helpHtml) ; buf.push('\n\n  </div>\n</div>\n\n');66; if (data.editCode) { ; buf.push('\n  <div id="codeWorkspace">\n');68; } else { ; buf.push('\n  <div id="blockly">\n');70; } ; buf.push('\n  <div id="headers" dir="', escape((71,  data.localeDirection )), '">\n    <div id="toolbox-header" class="blockly-header"><span>', escape((72,  msg.toolboxHeader() )), '</span></div>\n    <div id="workspace-header" class="blockly-header">\n      <span id="workspace-header-span">', escape((74,  msg.workspaceHeader())), ' </span>\n      <div id="blockCounter">\n        <div id="blockUsed" class=', escape((76,  data.blockCounterClass )), '>\n          ', escape((77,  data.blockUsed )), '\n        </div>\n        <span>&nbsp;/</span>\n        <span id="idealBlockNumber">', escape((80,  data.idealBlockNumber )), '</span>\n      </div>\n    </div>\n    <div id="show-code-header" class="blockly-header"><span>', escape((83,  msg.showCodeHeader() )), '</span></div>\n  </div>\n  ');85; if (data.editCode) { ; buf.push('\n    <div id="codeTextbox" contenteditable spellcheck=false></div>\n  ');87; } ; buf.push('\n</div>\n\n<div class="clear"></div>\n'); })();
+var helpArea = function(html) {; buf.push('  ');32; if (html) {; buf.push('    <div id="helpArea">\n      ', (33,  html ), '\n    </div>\n  ');35; }; buf.push('');35; };; buf.push('\n<div id="visualizationColumn">\n  <div id="visualization">\n    ', (38,  data.visualization ), '\n  </div>\n\n  <div id="belowVisualization">\n\n    <div id="gameButtons">\n      <button id="runButton" class="launch blocklyLaunch ', escape((44,  hideRunButton ? 'invisible' : '')), '">\n        <div>', escape((45,  msg.runProgram() )), '</div>\n        <img src="', escape((46,  assetUrl('media/1x1.gif') )), '" class="run26"/>\n      </button>\n      <button id="resetButton" class="launch blocklyLaunch" style="display: none">\n        <div>', escape((49,  msg.resetProgram() )), '</div>\n        <img src="', escape((50,  assetUrl('media/1x1.gif') )), '" class="reset26"/>\n      </button>\n      ');52; if (data.controls) { ; buf.push('\n      ', (53,  data.controls ), '\n      ');54; } ; buf.push('\n      ');55; if (data.extraControlRows) { ; buf.push('\n      ', (56,  data.extraControlRows ), '\n      ');57; } ; buf.push('\n    </div>\n\n    ');60; instructions() ; buf.push('\n    ');61; helpArea(data.helpHtml) ; buf.push('\n\n  </div>\n</div>\n\n');66; if (data.editCode) { ; buf.push('\n  <div id="codeWorkspace">\n');68; } else { ; buf.push('\n  <div id="blockly">\n');70; } ; buf.push('\n  <div id="headers" dir="', escape((71,  data.localeDirection )), '">\n    <div id="toolbox-header" class="blockly-header"><span>', escape((72,  msg.toolboxHeader() )), '</span></div>\n    <div id="workspace-header" class="blockly-header">\n      <span id="workspace-header-span">', escape((74,  msg.workspaceHeader())), ' </span>\n      <div id="blockCounter">\n        <div id="blockUsed" class=', escape((76,  data.blockCounterClass )), '>\n          ', escape((77,  data.blockUsed )), '\n        </div>\n        <span>&nbsp;/</span>\n        <span id="idealBlockNumber">', escape((80,  data.idealBlockNumber )), '</span>\n      </div>\n    </div>\n    <div id="show-code-header" class="blockly-header"><span>', escape((83,  msg.showCodeHeader() )), '</span></div>\n  </div>\n  ');85; if (data.editCode) { ; buf.push('\n    <div id="codeTextbox"></div>\n  ');87; } ; buf.push('\n</div>\n\n<div class="clear"></div>\n'); })();
 } 
 return buf.join('');
 };
@@ -14009,7 +13914,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"../../locale/ru_ru/common":50,"ejs":52}],43:[function(require,module,exports){
+},{"../../locale/ru_ru/common":49,"ejs":51}],42:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -14031,7 +13936,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"ejs":52}],44:[function(require,module,exports){
+},{"ejs":51}],43:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -14052,7 +13957,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"ejs":52}],45:[function(require,module,exports){
+},{"ejs":51}],44:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -14065,7 +13970,7 @@ escape = escape || function (html){
 };
 var buf = [];
 with (locals || {}) { (function(){ 
- buf.push('');1; var msg = require('../../locale/ru_ru/common'); ; buf.push('\n');2; if (options.feedbackImage) { ; buf.push('\n  <div class="sharing">\n    <img class="feedback-image" src="', escape((4,  options.feedbackImage )), '">\n  </div>\n');6; } ; buf.push('\n\n<div class="sharing">\n  <div class="social-buttons">\n  ');10; if (!options.onMainPage) { ; buf.push('\n    <button id="print-button">\n      ', escape((12,  msg.print() )), '\n    </button>\n  ');14; } ; buf.push('\n');15; if (options.alreadySaved) { ; buf.push('\n  <button class="saved-to-gallery" disabled>\n    ', escape((17,  msg.savedToGallery() )), '\n  </button>\n');19; } else if (options.saveToGalleryUrl) { ; buf.push('\n  <button id="save-to-gallery-button" class="launch">\n    ', escape((21,  msg.saveToGallery() )), '\n  </button>\n');23; } ; buf.push('\n  </div>\n\n');26; if (options.response && options.response.level_source) { ; buf.push('\n  ');27; if (options.appStrings && options.appStrings.sharingText) { ; buf.push('\n    <div>', escape((28,  options.appStrings.sharingText )), '</div>\n  ');29; } ; buf.push('\n\n  <div>\n    <input type="text" id="sharing-input" value=', escape((32,  options.response.level_source )), ' readonly>\n  </div>\n\n  <div class=\'social-buttons\'>\n    ');36; if (options.facebookUrl) {; buf.push('      <a href=\'', escape((36,  options.facebookUrl )), '\' target="_blank" class="popup-window">\n        <img src=\'', escape((37,  BlocklyApps.assetUrl("media/facebook_purple.png") )), '\' />\n      </a>\n    ');39; }; buf.push('\n    ');40; if (options.twitterUrl) {; buf.push('      <a href=\'', escape((40,  options.twitterUrl )), '\' target="_blank" class="popup-window">\n        <img src=\'', escape((41,  BlocklyApps.assetUrl("media/twitter_purple.png") )), '\' />\n      </a>\n    ');43; }; buf.push('    ');43; if (options.sendToPhone) {; buf.push('      <a id="sharing-phone" href="" onClick="return false;">\n        <img src=\'', escape((44,  BlocklyApps.assetUrl("media/phone_purple.png") )), '\' />\n      </a>\n    ');46; }; buf.push('    ');46; if (options.level.shapewaysUrl && !options.onMainPage && options.sendToPhone) {; buf.push('      <a id="sharing-shapeways" href="" onClick="return false;">\n        <img src=\'', escape((47,  BlocklyApps.assetUrl("media/shapeways_purple.png") )), '\' />\n      </a>\n    ');49; }; buf.push('  </div>\n');50; } ; buf.push('\n</div>\n<div id="send-to-phone" class="sharing" style="display: none">\n  <label for="phone">Enter a US phone number:</label>\n  <input type="text" id="phone" name="phone" />\n  <button id="phone-submit" onClick="return false;">Send</button>\n  <div id="phone-charges">A text message will be sent via <a href="http://twilio.com">Twilio</a>. Charges may apply to the recipient.</div>\n</div>\n');58; if (options.response && options.response.level_source && options.level.shapewaysUrl) {; buf.push('  <div id="shapeways-message" class="sharing" style="display: none">\n    <div id="shapeways-message-body">You\'ll be redirected to Shapeways.com to order and purchase a 3D print.</div>\n    <button id="shapeways-print-go-button" onclick="location.href=\'', escape((60,  options.level.shapewaysUrl )), '\'">Go to Shapeways</button>\n    <div id="shapeways-message-body-disclaimer">Students under 13 years need a parent or guardian to do 3D printing.</div>\n  </div>\n');63; }; buf.push(''); })();
+ buf.push('');1; var msg = require('../../locale/ru_ru/common'); ; buf.push('\n');2; if (options.feedbackImage) { ; buf.push('\n  <div class="sharing">\n    <img class="feedback-image" src="', escape((4,  options.feedbackImage )), '">\n  </div>\n');6; } ; buf.push('\n\n<div class="sharing">\n  <div class="social-buttons">\n  ');10; if (!options.onMainPage) { ; buf.push('\n    <button id="print-button">\n      ', escape((12,  msg.print() )), '\n    </button>\n  ');14; } ; buf.push('\n');15; if (options.alreadySaved) { ; buf.push('\n  <button class="saved-to-gallery" disabled>\n    ', escape((17,  msg.savedToGallery() )), '\n  </button>\n');19; } else if (options.saveToGalleryUrl) { ; buf.push('\n  <button id="save-to-gallery-button" class="launch">\n    ', escape((21,  msg.saveToGallery() )), '\n  </button>\n');23; } ; buf.push('\n  </div>\n\n');26; if (options.response && options.response.level_source) { ; buf.push('\n  ');27; if (options.appStrings && options.appStrings.sharingText) { ; buf.push('\n    <div>', escape((28,  options.appStrings.sharingText )), '</div>\n  ');29; } ; buf.push('\n\n  <div>\n    <input type="text" id="sharing-input" value=', escape((32,  options.response.level_source )), ' readonly>\n  </div>\n\n  <div class=\'social-buttons\'>\n    ');36; if (options.facebookUrl) {; buf.push('      <a href=\'', escape((36,  options.facebookUrl )), '\' target="_blank" class="popup-window">\n        <img src=\'', escape((37,  BlocklyApps.assetUrl("media/facebook_purple.png") )), '\' />\n      </a>\n    ');39; }; buf.push('\n    ');40; if (options.twitterUrl) {; buf.push('      <a href=\'', escape((40,  options.twitterUrl )), '\' target="_blank" class="popup-window">\n        <img src=\'', escape((41,  BlocklyApps.assetUrl("media/twitter_purple.png") )), '\' />\n      </a>\n    ');43; }; buf.push('    ');43; if (options.sendToPhone) {; buf.push('      <a id="sharing-phone" href="" onClick="return false;">\n        <img src=\'', escape((44,  BlocklyApps.assetUrl("media/phone_purple.png") )), '\' />\n      </a>\n    ');46; }; buf.push('    ');46; if (options.level.shapewaysUrl && !options.onMainPage && options.sendToPhone) {; buf.push('      <a id="sharing-shapeways" href="" onClick="return false;">\n        <img src=\'', escape((47,  BlocklyApps.assetUrl("media/shapeways_purple.png") )), '\' />\n      </a>\n    ');49; }; buf.push('  </div>\n');50; } ; buf.push('\n</div>\n<div id="send-to-phone" class="sharing" style="display: none">\n  <label for="phone">Enter a US phone number:</label>\n  <input type="text" id="phone" name="phone" />\n  <button id="phone-submit" onClick="return false;">Send</button>\n  <div id="phone-charges">A text message will be sent via <a href="http://twilio.com">Twilio</a>. Charges may apply to the recipient.</div>\n</div>\n');58; if (options.response && options.response.level_source && options.level.shapewaysUrl) {; buf.push('  <div id="shapeways-message" class="sharing" style="display: none">\n    <div id="shapeways-message-body">You\'ll be redirected to Shapeways.com to order and purchase a 3D print.</div>\n    <button id="shapeways-print-go-button" onclick="window.open(\'', escape((60,  options.level.shapewaysUrl )), '\', \'_blank\')">Go to Shapeways</button>\n    <div id="shapeways-message-body-disclaimer">Students under 13 years need a parent or guardian to do 3D printing.</div>\n  </div>\n');63; }; buf.push(''); })();
 } 
 return buf.join('');
 };
@@ -14073,7 +13978,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"../../locale/ru_ru/common":50,"ejs":52}],46:[function(require,module,exports){
+},{"../../locale/ru_ru/common":49,"ejs":51}],45:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -14094,7 +13999,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"../../locale/ru_ru/common":50,"ejs":52}],47:[function(require,module,exports){
+},{"../../locale/ru_ru/common":49,"ejs":51}],46:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -14115,7 +14020,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"ejs":52}],48:[function(require,module,exports){
+},{"ejs":51}],47:[function(require,module,exports){
 var xml = require('./xml');
 var savedAmd;
 
@@ -14447,7 +14352,7 @@ exports.generateDropletModeOptions = function (codeFunctions) {
   return modeOptions;
 };
 
-},{"./hammer":30,"./lodash":31,"./xml":49}],49:[function(require,module,exports){
+},{"./hammer":29,"./lodash":30,"./xml":48}],48:[function(require,module,exports){
 // Serializes an XML DOM node to a string.
 exports.serialize = function(node) {
   var serializer = new XMLSerializer();
@@ -14475,7 +14380,7 @@ exports.parseElement = function(text) {
   return element;
 };
 
-},{}],50:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 var MessageFormat = require("messageformat");MessageFormat.locale.ru = function (n) {
   if ((n % 10) == 1 && (n % 100) != 11) {
     return 'one';
@@ -14538,19 +14443,19 @@ exports.emptyBlocksErrorMsg = function(d){return "Блокам \"повторя�
 
 exports.emptyFunctionBlocksErrorMsg = function(d){return "Блок процедуры требует для работы другие блоки внутри себя."};
 
-exports.errorEmptyFunctionBlockModal = function(d){return "There need to be blocks inside your function definition. Click \"edit\" and drag blocks inside the green block."};
+exports.errorEmptyFunctionBlockModal = function(d){return "В определении твоей функции обязательно должны быть блоки. Нажми \"Редактировать\" и перетащи блоки внутрь зеленого блока."};
 
-exports.errorIncompleteBlockInFunction = function(d){return "Click \"edit\" to make sure you don't have any blocks missing inside your function definition."};
+exports.errorIncompleteBlockInFunction = function(d){return "Нажми \"Редактировать\" чтобы убедиться, что ты не пропустил никакие блоки в определении функции."};
 
-exports.errorParamInputUnattached = function(d){return "Remember to attach a block to each parameter input on the function block in your workspace."};
+exports.errorParamInputUnattached = function(d){return "Не забудь прикрепить блок к каждому входящему параметру блока функции в своем рабочем пространстве."};
 
-exports.errorUnusedParam = function(d){return "You added a parameter block, but didn't use it in the definition. Make sure to use your parameter by clicking \"edit\" and placing the parameter block inside the green block."};
+exports.errorUnusedParam = function(d){return "Ты добавил блок параметра но не использовал его в определении функции. Чтобы убедиться, что используешь параметр, нажми на \"Редактировать\" и помести блок параметра внутрь зеленого блока."};
 
-exports.errorRequiredParamsMissing = function(d){return "Create a parameter for your function by clicking \"edit\" and adding the necessary parameters. Drag the new parameter blocks into your function definition."};
+exports.errorRequiredParamsMissing = function(d){return "Создай параметр для твоей функции нажав \"Редактировать\" и добавив необходимые параметры. Перетащи новые блоки параметров в определение твоей функции."};
 
-exports.errorUnusedFunction = function(d){return "You created a function, but never used it on your workspace! Click on \"Functions\" in the toolbox and make sure you use it in your program."};
+exports.errorUnusedFunction = function(d){return "Вы создали функцию, но не использовали её в работе! Нажмите на «Функции» на панели инструментов и убедитесь, что вы используете его в своей программе."};
 
-exports.errorQuestionMarksInNumberField = function(d){return "Try replacing \"???\" with a value."};
+exports.errorQuestionMarksInNumberField = function(d){return "Попробуйте изменить значение \"???\"."};
 
 exports.extraTopBlocks = function(d){return "У тебя остались неприсоединённые блоки. Ты собирался присоединить их к блоку \"При запуске\"?"};
 
@@ -14574,7 +14479,7 @@ exports.levelIncompleteError = function(d){return "Ты используешь �
 
 exports.listVariable = function(d){return "список"};
 
-exports.makeYourOwnFlappy = function(d){return "Создай Свою Flappy Игру"};
+exports.makeYourOwnFlappy = function(d){return "Создайте свою Flappy игру"};
 
 exports.missingBlocksErrorMsg = function(d){return "Для решения этой головоломки попробуй один или несколько из следующих блоков:"};
 
@@ -14582,9 +14487,9 @@ exports.nextLevel = function(d){return "Поздравляю! Головолом
 
 exports.nextLevelTrophies = function(d){return "Поздравляю! Ты завершил головоломку "+v(d,"puzzleNumber")+" и выиграл "+p(d,"numTrophies",0,"ru",{"one":"кубок","other":n(d,"numTrophies")+" кубков"})+"."};
 
-exports.nextStage = function(d){return "Поздравляю! Ты завершил "+v(d,"stageName")+"."};
+exports.nextStage = function(d){return "Поздравляем! Вы закончили "+v(d,"stageName")+"."};
 
-exports.nextStageTrophies = function(d){return "Поздравляю! Ты завершил этап "+v(d,"stageName")+" и выиграл "+p(d,"numTrophies",0,"ru",{"one":"a trophy","other":n(d,"numTrophies")+" trophies"})+"."};
+exports.nextStageTrophies = function(d){return "Поздравляем! Вы выполнили "+v(d,"stageName")+" и выиграли "+p(d,"numTrophies",0,"ru",{"one":"a trophy","other":n(d,"numTrophies")+" trophies"})+"."};
 
 exports.numBlocksNeeded = function(d){return "Поздравляю! Ты завершил головоломку "+v(d,"puzzleNumber")+". (Однако, можно было обойтись всего  "+p(d,"numBlocks",0,"ru",{"one":"1 блоком","other":n(d,"numBlocks")+" блоками"})+".)"};
 
@@ -14612,7 +14517,7 @@ exports.showBlocksHeader = function(d){return "Показать блоки"};
 
 exports.showGeneratedCode = function(d){return "Показать код"};
 
-exports.stringEquals = function(d){return "string=?"};
+exports.stringEquals = function(d){return "строка=?"};
 
 exports.subtitle = function(d){return "среда визуального программирования"};
 
@@ -14642,13 +14547,9 @@ exports.savedToGallery = function(d){return "Сохранено в галере�
 
 exports.shareFailure = function(d){return "К сожалению, мы не можем поделиться этой программой."};
 
-exports.typeFuncs = function(d){return "Доступные процедуры:%1"};
-
-exports.typeHint = function(d){return "Обратите внимание на то, что требуются круглые скобки и точки с запятой."};
-
 exports.workspaceHeader = function(d){return "Место сбора блоков: "};
 
-exports.workspaceHeaderJavaScript = function(d){return "Введите Ваш код JavaScript здесь"};
+exports.workspaceHeaderJavaScript = function(d){return "Введите ваш JavaScript код здесь"};
 
 exports.infinity = function(d){return "Бесконечность"};
 
@@ -14656,7 +14557,7 @@ exports.rotateText = function(d){return "Поверните ваше устро�
 
 exports.orientationLock = function(d){return "Выключите блокировку ориентации в настройках устройства."};
 
-exports.wantToLearn = function(d){return "Хотите научиться писать код?"};
+exports.wantToLearn = function(d){return "Хочешь научиться программировать?"};
 
 exports.watchVideo = function(d){return "Посмотреть видео"};
 
@@ -14670,12 +14571,12 @@ exports.signup = function(d){return "Зарегистрируйтесь на в�
 
 exports.hintHeader = function(d){return "Подсказка:"};
 
-exports.genericFeedback = function(d){return "Посмотреть, как вы выполнили, и попытаться исправить вашу программу."};
+exports.genericFeedback = function(d){return "Посмотрите, что у вас получилось, и попытайтесь исправить вашу программу."};
 
 exports.defaultTwitterText = function(d){return "Check out what I made"};
 
 
-},{"messageformat":63}],51:[function(require,module,exports){
+},{"messageformat":62}],50:[function(require,module,exports){
 var MessageFormat = require("messageformat");MessageFormat.locale.ru = function (n) {
   if ((n % 10) == 1 && (n % 100) != 11) {
     return 'one';
@@ -14692,7 +14593,7 @@ var MessageFormat = require("messageformat");MessageFormat.locale.ru = function 
 };
 exports.circleBlockTitle = function(d){return "круг (радиус, стиль, цвет)"};
 
-exports.displayBlockTitle = function(d){return "показать"};
+exports.displayBlockTitle = function(d){return "отобразить"};
 
 exports.ellipseBlockTitle = function(d){return "эллипс (ширина, высота, стиль, цвет)"};
 
@@ -14702,7 +14603,7 @@ exports.overlayBlockTitle = function(d){return "наложение (сверху
 
 exports.placeImageBlockTitle = function(d){return "поместить изображение (x, y, изображение)"};
 
-exports.offsetBlockTitle = function(d){return "offset (x, y, image)"};
+exports.offsetBlockTitle = function(d){return "сдвиг (x, y, изображение)"};
 
 exports.rectangleBlockTitle = function(d){return "прямоугольник (ширина, высота, стиль, цвет)"};
 
@@ -14716,11 +14617,9 @@ exports.squareBlockTitle = function(d){return "квадрат (размер, с�
 
 exports.starBlockTitle = function(d){return "звезда (радиус, стиль, цвет)"};
 
-exports.radialStarBlockTitle = function(d){return "radial-star (points, inner, outer, style, color)"};
+exports.radialStarBlockTitle = function(d){return "многоконечная-звезда (вершины, внутренний радиус, внешний радиус стиль, цвет)"};
 
-exports.polygonBlockTitle = function(d){return "polygon (sides, length, style, color)"};
-
-exports.stringAppendBlockTitle = function(d){return "добавить строки (первая, вторая)"};
+exports.stringAppendBlockTitle = function(d){return "добавить строки (первую, вторую)"};
 
 exports.stringLengthBlockTitle = function(d){return "длина строки (строка)"};
 
@@ -14728,7 +14627,7 @@ exports.textBlockTitle = function(d){return "текст (строка, разм�
 
 exports.triangleBlockTitle = function(d){return "треугольник (размер, стиль, цвет)"};
 
-exports.underlayBlockTitle = function(d){return "подложка (снизу, сверху)"};
+exports.underlayBlockTitle = function(d){return "подкладывание (снизу, сверху)"};
 
 exports.outline = function(d){return "контур"};
 
@@ -14737,7 +14636,7 @@ exports.solid = function(d){return "заливка"};
 exports.string = function(d){return "строка"};
 
 
-},{"messageformat":63}],52:[function(require,module,exports){
+},{"messageformat":62}],51:[function(require,module,exports){
 
 /*!
  * EJS
@@ -15096,7 +14995,7 @@ if (require.extensions) {
   });
 }
 
-},{"./filters":53,"./utils":54,"fs":55,"path":56}],53:[function(require,module,exports){
+},{"./filters":52,"./utils":53,"fs":54,"path":55}],52:[function(require,module,exports){
 /*!
  * EJS - Filters
  * Copyright(c) 2010 TJ Holowaychuk <tj@vision-media.ca>
@@ -15299,7 +15198,7 @@ exports.json = function(obj){
   return JSON.stringify(obj);
 };
 
-},{}],54:[function(require,module,exports){
+},{}],53:[function(require,module,exports){
 
 /*!
  * EJS
@@ -15325,9 +15224,9 @@ exports.escape = function(html){
 };
  
 
-},{}],55:[function(require,module,exports){
+},{}],54:[function(require,module,exports){
 
-},{}],56:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -15555,7 +15454,7 @@ var substr = 'ab'.substr(-1) === 'b'
 ;
 
 }).call(this,require("JkpR2F"))
-},{"JkpR2F":57}],57:[function(require,module,exports){
+},{"JkpR2F":56}],56:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -15620,7 +15519,7 @@ process.chdir = function (dir) {
     throw new Error('process.chdir is not supported');
 };
 
-},{}],58:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 (function (global){
 /*! http://mths.be/punycode v1.2.4 by @mathias */
 ;(function(root) {
@@ -16131,7 +16030,7 @@ process.chdir = function (dir) {
 }(this));
 
 }).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],59:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -16217,7 +16116,7 @@ var isArray = Array.isArray || function (xs) {
   return Object.prototype.toString.call(xs) === '[object Array]';
 };
 
-},{}],60:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -16304,13 +16203,13 @@ var objectKeys = Object.keys || function (obj) {
   return res;
 };
 
-},{}],61:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 'use strict';
 
 exports.decode = exports.parse = require('./decode');
 exports.encode = exports.stringify = require('./encode');
 
-},{"./decode":59,"./encode":60}],62:[function(require,module,exports){
+},{"./decode":58,"./encode":59}],61:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -17019,7 +16918,7 @@ function isNullOrUndefined(arg) {
   return  arg == null;
 }
 
-},{"punycode":58,"querystring":61}],63:[function(require,module,exports){
+},{"punycode":57,"querystring":60}],62:[function(require,module,exports){
 /**
  * messageformat.js
  *
@@ -18602,4 +18501,4 @@ function isNullOrUndefined(arg) {
 
 })( this );
 
-},{}]},{},[26])
+},{}]},{},[25])
