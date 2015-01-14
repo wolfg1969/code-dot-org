@@ -1,13 +1,15 @@
 var utils = require('./utils');
 var _ = utils.getLodash();
 var requiredBlockUtils = require('./required_block_utils');
-var studioApp = require('./StudioApp').singleton;
+var StudioAppClass = require('./StudioApp');
+
+var studioAppSingleton = require('./base');
+window.StudioApp = studioAppSingleton;
 
 // TODO (br-pair) : This is to expose methods we need in the global namespace
 // for testing purpose. Would be nice to eliminate this eventually.
 window.__TestInterface = {
-  loadBlocks: _.bind(studioApp.loadBlocks, studioApp),
-  arrangeBlockPosition: _.bind(studioApp.arrangeBlockPosition, studioApp)
+  loadBlocks: _.bind(studioAppSingleton.loadBlocks, studioAppSingleton)
 };
 
 var addReadyListener = require('./dom').addReadyListener;
@@ -33,11 +35,11 @@ module.exports = function(app, levels, options) {
     options.level = level;
   }
 
-  studioApp.configure(options);
+  studioAppSingleton.configure(options);
 
-  options.skin = options.skinsModule.load(studioApp.assetUrl, options.skinId);
+  options.skin = options.skinsModule.load(studioAppSingleton.assetUrl, options.skinId);
 
-  if (studioApp.usingBlockly) {
+  if (studioAppSingleton.usingBlockly) {
     var blockInstallOptions = {
       skin: options.skin,
       isK1: options.level && options.level.isK1
@@ -56,7 +58,7 @@ module.exports = function(app, levels, options) {
       if (app.initReadonly) {
         app.initReadonly(options);
       } else {
-        studioApp.initReadonly(options);
+        studioAppSingleton.initReadonly(options);
       }
     } else {
       app.init(options);

@@ -4,7 +4,7 @@ var blockUtils = require(testUtils.buildPath('block_utils.js'));
 
 var Colours = require(testUtils.buildPath('turtle/colours'));
 
-var studioApp = require(testUtils.buildPath('StudioApp')).singleton;
+var studioAppSingleton = require(testUtils.buildPath('base'));
 
 module.exports = {
   app: "turtle",

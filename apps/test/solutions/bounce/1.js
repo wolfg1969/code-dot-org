@@ -1,5 +1,5 @@
 var testUtils = require('../../util/testUtils');
-var studioApp = require(testUtils.buildPath('StudioApp')).singleton;
+var studioAppSingleton = require(testUtils.buildPath('base'));
 
 module.exports = {
   app: "bounce",
@@ -22,8 +22,8 @@ module.exports = {
         result: false
       },
       runBeforeClick: function (assert) {
-        assert(studioApp.enableShowCode === false);
-        assert(studioApp.enableShowBlockCount === false);
+        assert(studioAppSingleton.enableShowCode === false);
+        assert(studioAppSingleton.enableShowBlockCount === false);
 
         // manually complete rather than wait for timeout
         setTimeout(function () {

@@ -32,7 +32,7 @@ describe("Bee", function () {
     };
     delete config.level.flowerType;
     assert.throws(function () {
-      new Bee(maze, null, config);
+      new Bee(maze, config);
     }, Error, /bad flowerType for Bee/);
   });
 
@@ -45,7 +45,7 @@ describe("Bee", function () {
       })
     };
     assert.throws(function () {
-      new Bee(maze, null, config);
+      new Bee(maze, config);
     }, Error, /bad flowerType for Bee/);
   });
 
@@ -67,7 +67,7 @@ describe("Bee", function () {
           initialDirt: [[initialDirtValue]]
         })
       };
-      var bee = new Bee(maze, null, config);
+      var bee = new Bee(maze, config);
       assert.equal(bee.isRedFlower(0, 0), expected, msg);
     }
 

@@ -1,4 +1,5 @@
 class SessionsController < Devise::SessionsController
+  before_filter :nonminimal
 
   # see also
   # https://github.com/plataformatec/devise/blob/v3.2/app/controllers/devise/sessions_controller.rb

@@ -1,45 +1,37 @@
+var trophy = require('./templates/trophy.html');
+var utils = require('./utils');
+var codegen = require('./codegen');
+var msg = require('../locale/current/common');
+var dom = require('./dom');
+var xml = require('./xml');
+var _ = utils.getLodash();
+
+var FeedbackBlocks = require('./feedbackBlocks');
+
+// TODO (br-pair): This is a hack. We initially set our studioAppSingleton to
+// be the global StudioApp. This will be the case for all apps other than Artist.
+// However, that global is not necessarily set yet at the point where we load
+// feedback, and requiring base here introduces a circular dependency. Instead,
+// we depend on base apply the singleton to the feedback object i required.
+var studioAppSingleton;
+exports.applySingleton = function (singleton) {
+  studioAppSingleton = singleton;
+};
+
+var TestResults = require('./constants').TestResults;
+
 // NOTE: These must be kept in sync with activity_hint.rb in dashboard.
-var HINT_REQUEST_PLACEMENT = {
+var HintRequestPlacement = {
   NONE: 0,  // This value must not be changed.
   LEFT: 1,  // Hint request button is on left.
   RIGHT: 2  // Hint request button is on right.
 };
 
-/**
- * Bag of utility functions related to building and displaying feedback
- * to students.
- * @class
- * @param {StudioApp} studioApp A studioApp instance used to pull
- *   configuration and perform operations.
- */
-var FeedbackUtils = function (studioApp) {
-  this.studioApp_ = studioApp;
-};
-module.exports = FeedbackUtils;
-
-// Globals used in this file:
-//   Blockly
-
-var trophy = require('./templates/trophy.html');
-var utils = require('./utils');
-var _ = utils.getLodash();
-var codegen = require('./codegen');
-var msg = require('../locale/current/common');
-var dom = require('./dom');
-var xml = require('./xml');
-var FeedbackBlocks = require('./feedbackBlocks');
-var constants = require('./constants');
-var TestResults = constants.TestResults;
-var KeyCodes = constants.KeyCodes;
-
-/**
- *
- */
-FeedbackUtils.prototype.displayFeedback = function(options) {
+exports.displayFeedback = function(options) {
   options.hintRequestExperiment = options.response &&
       options.response.hint_request_placement;
   options.level = options.level || {};
-  options.numTrophies = this.numTrophiesEarned_(options);
+  options.numTrophies = numTrophiesEarned(options);
 
   // Tracking event for level newly completed
   if (options.response && options.response.new_level_completed) {
@@ -49,24 +41,20 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
   var hadShareFailure = (options.response && options.response.share_failure);
   var showingSharing = options.showingSharing && !hadShareFailure;
 
-  var canContinue = this.canContinueToNextLevel(options.feedbackType);
-  var displayShowCode = this.studioApp_.enableShowCode && canContinue && !showingSharing;
+  var canContinue = exports.canContinueToNextLevel(options.feedbackType);
+  var displayShowCode = studioAppSingleton.enableShowCode && canContinue && !showingSharing;
   var feedback = document.createElement('div');
-  var sharingDiv = (canContinue && showingSharing) ? this.createSharingDiv(options) : null;
-  var showCode = displayShowCode ? this.getShowCodeElement_(options) : null;
-  var shareFailureDiv = hadShareFailure ? this.getShareFailure_(options) : null;
+  var sharingDiv = (canContinue && showingSharing) ? exports.createSharingDiv(options) : null;
+  var showCode = displayShowCode ? getShowCodeElement(options) : null;
+  var shareFailureDiv = hadShareFailure ? getShareFailure(options) : null;
   if (hadShareFailure) {
     trackEvent('Share', 'Failure', options.response.share_failure.type);
   }
-  var feedbackBlocks;
-  if (this.studioApp_.usingBlockly) {
-    feedbackBlocks = new FeedbackBlocks(options,
-                                        this.getMissingRequiredBlocks_(),
-                                        this.studioApp_);
-  }
+  var feedbackBlocks = new FeedbackBlocks(options, exports.getMissingRequiredBlocks_(),
+    studioAppSingleton);
   // feedbackMessage must be initialized after feedbackBlocks
   // because FeedbackBlocks can mutate options.response.hint.
-  var feedbackMessage = this.getFeedbackMessage_(options);
+  var feedbackMessage = getFeedbackMessage(options);
 
   if (feedbackMessage) {
     feedback.appendChild(feedbackMessage);
@@ -80,11 +68,11 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
         trackEvent('Trophy', concept_name, trophy_name);
       }
     }
-    var trophies = this.getTrophiesElement_(options);
+    var trophies = getTrophiesElement(options);
     feedback.appendChild(trophies);
   }
-  if (feedbackBlocks && feedbackBlocks.div) {
-    if (feedbackMessage && this.useSpecialFeedbackDesign_(options)) {
+  if (feedbackBlocks.div) {
+    if (feedbackMessage && useSpecialFeedbackDesign(options)) {
       // put the blocks iframe inside the feedbackMessage for this special case:
       feedbackMessage.appendChild(feedbackBlocks.div);
     } else {
@@ -113,7 +101,7 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
   }
 
   feedback.appendChild(
-    this.getFeedbackButtons_({
+    getFeedbackButtons({
       feedbackType: options.feedbackType,
       showPreviousButton: options.level.showPreviousLevelButton,
       isK1: options.level.isK1,
@@ -130,10 +118,10 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
   var onlyContinue = continueButton && !againButton && !previousLevelButton;
 
   var onHidden = onlyContinue ? options.onContinue : null;
-  var icon = canContinue ? this.studioApp_.winIcon : this.studioApp_.failureIcon;
+  var icon = canContinue ? studioAppSingleton.winIcon : studioAppSingleton.failureIcon;
   var defaultBtnSelector = onlyContinue ? '#continue-button' : '#again-button';
 
-  var feedbackDialog = this.createModalDialogWithIcon({
+  var feedbackDialog = exports.createModalDialogWithIcon({
     Dialog: options.Dialog,
     contentDiv: feedback,
     icon: icon,
@@ -143,7 +131,7 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
   });
 
   // Update the background color if it is set to be in special design.
-  if (this.useSpecialFeedbackDesign_(options)) {
+  if (useSpecialFeedbackDesign(options)) {
     if (options.response.design == "white_background") {
       document.getElementById('feedback-dialog')
           .className += " white-background";
@@ -170,7 +158,7 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
   // hint if the button gets pressed.
   if (hintRequestButton) {
     // Swap out the specific feedback message with a generic one.
-    var genericFeedback = this.getFeedbackMessage_({message: msg.genericFeedback()});
+    var genericFeedback = getFeedbackMessage({message: msg.genericFeedback()});
     var parentNode = feedbackMessage.parentNode;
     parentNode.replaceChild(genericFeedback, feedbackMessage);
 
@@ -179,7 +167,7 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
     // the feedback blocks into the correct location if needed.
     var feedbackBlocksParent = null;
     var feedbackBlocksNextSib = null;
-    if (feedbackBlocks && feedbackBlocks.div) {
+    if (feedbackBlocks.div) {
       feedbackBlocksParent = feedbackBlocks.div.parentNode;
       feedbackBlocksNextSib = feedbackBlocks.div.nextSibling;
       feedbackBlocksParent.removeChild(feedbackBlocks.div);
@@ -195,7 +183,7 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
       hintRequestButton.parentNode.removeChild(hintRequestButton);
 
       // Restore feedback blocks, if present.
-      if (feedbackBlocks && feedbackBlocks.div && feedbackBlocksParent) {
+      if (feedbackBlocks.div && feedbackBlocksParent) {
         feedbackBlocksParent.insertBefore(feedbackBlocks.div, feedbackBlocksNextSib);
         feedbackBlocks.show();
       }
@@ -245,7 +233,7 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
     backdrop: (options.app === 'flappy' ? 'static' : true)
   });
 
-  if (feedbackBlocks && feedbackBlocks.div) {
+  if (feedbackBlocks.div) {
     feedbackBlocks.show();
   }
 };
@@ -255,12 +243,12 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
  * not disabled, are deletable.
  * @return {number} Number of blocks used.
  */
-FeedbackUtils.prototype.getNumBlocksUsed = function() {
+exports.getNumBlocksUsed = function() {
   var i;
-  if (this.studioApp_.editCode) {
+  if (studioAppSingleton.editCode) {
     var codeLines = 0;
     // quick and dirty method to count non-blank lines that don't start with //
-    var lines = this.getGeneratedCodeString_().split("\n");
+    var lines = getGeneratedCodeString().split("\n");
     for (i = 0; i < lines.length; i++) {
       if ((lines[i].length > 1) && (lines[i][0] != '/' || lines[i][1] != '/')) {
         codeLines++;
@@ -268,7 +256,7 @@ FeedbackUtils.prototype.getNumBlocksUsed = function() {
     }
     return codeLines;
   }
-  return this.getUserBlocks_().length;
+  return getUserBlocks().length;
 };
 
 /**
@@ -276,12 +264,12 @@ FeedbackUtils.prototype.getNumBlocksUsed = function() {
  * not disabled.
  * @return {number} Total number of blocks.
  */
-FeedbackUtils.prototype.getNumCountableBlocks = function() {
+exports.getNumCountableBlocks = function() {
   var i;
-  if (this.studioApp_.editCode) {
+  if (studioAppSingleton.editCode) {
     var codeLines = 0;
     // quick and dirty method to count non-blank lines that don't start with //
-    var lines = this.getGeneratedCodeString_().split("\n");
+    var lines = getGeneratedCodeString().split("\n");
     for (i = 0; i < lines.length; i++) {
       if ((lines[i].length > 1) && (lines[i][0] != '/' || lines[i][1] != '/')) {
         codeLines++;
@@ -289,27 +277,24 @@ FeedbackUtils.prototype.getNumCountableBlocks = function() {
     }
     return codeLines;
   }
-  return this.getCountableBlocks_().length;
+  return getCountableBlocks().length;
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.getFeedbackButtons_ = function(options) {
+var getFeedbackButtons = function(options) {
   var buttons = document.createElement('div');
   buttons.id = 'feedbackButtons';
   buttons.innerHTML = require('./templates/buttons.html')({
     data: {
       previousLevel:
-        !this.canContinueToNextLevel(options.feedbackType) &&
+        !exports.canContinueToNextLevel(options.feedbackType) &&
         options.showPreviousButton,
       tryAgain: options.feedbackType !== TestResults.ALL_PASS,
-      nextLevel: this.canContinueToNextLevel(options.feedbackType),
+      nextLevel: exports.canContinueToNextLevel(options.feedbackType),
       isK1: options.isK1,
       hintRequestExperiment: options.hintRequestExperiment &&
-          (options.hintRequestExperiment === HINT_REQUEST_PLACEMENT.LEFT ?
+          (options.hintRequestExperiment === HintRequestPlacement.LEFT ?
               'left' : 'right'),
-      assetUrl: this.studioApp_.assetUrl,
+      assetUrl: studioAppSingleton.assetUrl,
       freePlay: options.freePlay
     }
   });
@@ -317,20 +302,14 @@ FeedbackUtils.prototype.getFeedbackButtons_ = function(options) {
   return buttons;
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.getShareFailure_ = function(options) {
+var getShareFailure = function(options) {
   var shareFailure = options.response.share_failure;
   var shareFailureDiv = document.createElement('div');
   shareFailureDiv.innerHTML = require('./templates/shareFailure.html')({shareFailure: shareFailure});
   return shareFailureDiv;
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.useSpecialFeedbackDesign_ = function (options) {
+var useSpecialFeedbackDesign = function (options) {
  return options.response &&
         options.response.design &&
         options.response.hint;
@@ -345,7 +324,7 @@ FeedbackUtils.prototype.useSpecialFeedbackDesign_ = function (options) {
 //    specific result type (e.g., TestResults.EMPTY_BLOCK_FAIL).
 // 5. System-wide message (e.g., msg.emptyBlocksErrorMsg()) for specific
 //    result type (e.g., TestResults.EMPTY_BLOCK_FAIL).
-FeedbackUtils.prototype.getFeedbackMessage_ = function(options) {
+var getFeedbackMessage = function(options) {
   var feedback = document.createElement('p');
   feedback.className = 'congrats';
   var message;
@@ -404,7 +383,7 @@ FeedbackUtils.prototype.getFeedbackMessage_ = function(options) {
         break;
       case TestResults.TOO_MANY_BLOCKS_FAIL:
         message = msg.numBlocksNeeded({
-          numBlocks: this.studioApp_.IDEAL_BLOCK_NUM,
+          numBlocks: studioAppSingleton.IDEAL_BLOCK_NUM,
           puzzleNumber: options.level.puzzle_number || 0
         });
         break;
@@ -456,7 +435,7 @@ FeedbackUtils.prototype.getFeedbackMessage_ = function(options) {
   dom.setText(feedback, message);
 
   // Update the feedback box design, if the hint message came from server.
-  if (this.useSpecialFeedbackDesign_(options)) {
+  if (useSpecialFeedbackDesign(options)) {
     // Setup a new div
     var feedbackDiv = document.createElement('div');
     feedbackDiv.className = 'feedback-callout';
@@ -465,7 +444,7 @@ FeedbackUtils.prototype.getFeedbackMessage_ = function(options) {
     // Insert an image
     var imageDiv = document.createElement('img');
     imageDiv.className = "hint-image";
-    imageDiv.src = this.studioApp_.assetUrl(
+    imageDiv.src = studioAppSingleton.assetUrl(
       'media/lightbulb_for_' + options.response.design + '.png');
     feedbackDiv.appendChild(imageDiv);
     // Add new text
@@ -480,17 +459,14 @@ FeedbackUtils.prototype.getFeedbackMessage_ = function(options) {
   return feedback;
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.createSharingDiv = function(options) {
+exports.createSharingDiv = function(options) {
   if (!options.response || !options.response.level_source) {
     // don't even try if our caller didn't give us something that can be shared
     // options.response.level_source is the url that we are sharing
     return null;
   }
 
-  if (this.studioApp_.disableSocialShare) {
+  if (studioAppSingleton.disableSocialShare) {
     // Clear out our urls so that we don't display any of our social share links
     options.twitterUrl = undefined;
     options.facebookUrl = undefined;
@@ -530,7 +506,7 @@ FeedbackUtils.prototype.createSharingDiv = function(options) {
     options.facebookUrl = facebookUrl;
   }
 
-  options.assetUrl = this.studioApp_.assetUrl;
+  options.assetUrl = studioAppSingleton.assetUrl;
 
   var sharingDiv = document.createElement('div');
   sharingDiv.setAttribute('style', 'display:inline-block');
@@ -598,10 +574,8 @@ FeedbackUtils.prototype.createSharingDiv = function(options) {
   return sharingDiv;
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.numTrophiesEarned_ = function(options) {
+
+var numTrophiesEarned = function(options) {
   if (options.response && options.response.trophy_updates) {
     return options.response.trophy_updates.length;
   } else {
@@ -609,10 +583,7 @@ FeedbackUtils.prototype.numTrophiesEarned_ = function(options) {
   }
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.getTrophiesElement_ = function(options) {
+var getTrophiesElement = function(options) {
   var html = "";
   for (var i = 0; i < options.numTrophies; i++) {
     html += trophy({
@@ -625,14 +596,11 @@ FeedbackUtils.prototype.getTrophiesElement_ = function(options) {
   return trophies;
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.getShowCodeElement_ = function(options) {
+var getShowCodeElement = function(options) {
   var showCodeDiv = document.createElement('div');
   showCodeDiv.setAttribute('id', 'show-code');
 
-  var numLinesWritten = this.getNumBlocksUsed();
+  var numLinesWritten = exports.getNumBlocksUsed();
   var shouldShowTotalLines =
     (options.response &&
       options.response.total_lines &&
@@ -645,10 +613,10 @@ FeedbackUtils.prototype.getShowCodeElement_ = function(options) {
   });
 
   var showCodeButton = showCodeDiv.querySelector('#show-code-button');
-  showCodeButton.addEventListener('click', _.bind(function () {
-    showCodeDiv.appendChild(this.getGeneratedCodeElement_());
+  showCodeButton.addEventListener('click', function () {
+    showCodeDiv.appendChild(getGeneratedCodeElement());
     showCodeButton.style.display = 'none';
-  }, this));
+  });
 
   return showCodeDiv;
 };
@@ -656,9 +624,9 @@ FeedbackUtils.prototype.getShowCodeElement_ = function(options) {
 /**
  * Determines whether the user can proceed to the next level, based on the level feedback
  * @param {number} feedbackType A constant property of TestResults,
- *     typically produced by StudioApp.getTestResults().
+ *     typically produced by studioAppSingleton.getTestResults().
  */
-FeedbackUtils.prototype.canContinueToNextLevel = function(feedbackType) {
+exports.canContinueToNextLevel = function(feedbackType) {
   return (feedbackType === TestResults.ALL_PASS ||
     feedbackType === TestResults.TOO_MANY_BLOCKS_FAIL ||
     feedbackType ===  TestResults.APP_SPECIFIC_ACCEPTABLE_FAIL ||
@@ -668,26 +636,23 @@ FeedbackUtils.prototype.canContinueToNextLevel = function(feedbackType) {
 /**
  * Retrieve a string containing the user's generated Javascript code.
  */
-FeedbackUtils.prototype.getGeneratedCodeString_ = function() {
-  if (this.studioApp_.editCode) {
-    return this.studioApp_.editor ? this.studioApp_.editor.getValue() : '';
+var getGeneratedCodeString = function() {
+  if (studioAppSingleton.editCode) {
+    return studioAppSingleton.editor ? studioAppSingleton.editor.getValue() : '';
   }
   else {
     return codegen.workspaceCode(Blockly);
   }
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.getGeneratedCodeElement_ = function() {
+var getGeneratedCodeElement = function() {
   var codeInfoMsgParams = {
     berkeleyLink: "<a href='http://bjc.berkeley.edu/' target='_blank'>Berkeley</a>",
     harvardLink: "<a href='https://cs50.harvard.edu/' target='_blank'>Harvard</a>"
   };
 
-  var infoMessage = this.studioApp_.editCode ?  "" : msg.generatedCodeInfo(codeInfoMsgParams);
-  var code = this.getGeneratedCodeString_();
+  var infoMessage = studioAppSingleton.editCode ?  "" : msg.generatedCodeInfo(codeInfoMsgParams);
+  var code = getGeneratedCodeString();
 
   var codeDiv = document.createElement('div');
   codeDiv.innerHTML = require('./templates/code.html')({
@@ -698,11 +663,8 @@ FeedbackUtils.prototype.getGeneratedCodeElement_ = function() {
   return codeDiv;
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.showGeneratedCode = function(Dialog) {
-  var codeDiv = this.getGeneratedCodeElement_();
+exports.showGeneratedCode = function(Dialog) {
+  var codeDiv = getGeneratedCodeElement();
 
   var buttons = document.createElement('div');
   buttons.innerHTML = require('./templates/buttons.html')({
@@ -712,10 +674,10 @@ FeedbackUtils.prototype.showGeneratedCode = function(Dialog) {
   });
   codeDiv.appendChild(buttons);
 
-  var dialog = this.createModalDialogWithIcon({
+  var dialog = exports.createModalDialogWithIcon({
       Dialog: Dialog,
       contentDiv: codeDiv,
-      icon: this.studioApp_.icon,
+      icon: studioAppSingleton.icon,
       defaultBtnSelector: '#ok-button'
       });
 
@@ -729,10 +691,7 @@ FeedbackUtils.prototype.showGeneratedCode = function(Dialog) {
   dialog.show();
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.showToggleBlocksError = function(Dialog) {
+exports.showToggleBlocksError = function(Dialog) {
   var contentDiv = document.createElement('div');
   contentDiv.innerHTML = msg.toggleBlocksErrorMsg();
 
@@ -744,10 +703,10 @@ FeedbackUtils.prototype.showToggleBlocksError = function(Dialog) {
   });
   contentDiv.appendChild(buttons);
 
-  var dialog = this.createModalDialogWithIcon({
+  var dialog = exports.createModalDialogWithIcon({
       Dialog: Dialog,
       contentDiv: contentDiv,
-      icon: this.studioApp_.icon,
+      icon: studioAppSingleton.icon,
       defaultBtnSelector: '#ok-button'
   });
 
@@ -765,7 +724,7 @@ FeedbackUtils.prototype.showToggleBlocksError = function(Dialog) {
  * Check user's code for empty container blocks, such as "repeat".
  * @return {boolean} true if a block is empty (no blocks are nested inside).
  */
-FeedbackUtils.prototype.hasEmptyContainerBlocks_ = function() {
+var hasEmptyContainerBlocks = function() {
   var code = codegen.workspaceCode(Blockly);
   return (/\{\s*\}/).test(code);
 };
@@ -774,7 +733,7 @@ FeedbackUtils.prototype.hasEmptyContainerBlocks_ = function() {
  * Get an empty container block, if any are present.
  * @return {Blockly.Block} an empty container block, or null if none exist.
  */
-FeedbackUtils.prototype.getEmptyContainerBlock_ = function() {
+var getEmptyContainerBlock = function() {
   var blocks = Blockly.mainBlockSpace.getAllBlocks();
   for (var i = 0; i < blocks.length; i++) {
     var block = blocks[i];
@@ -793,8 +752,8 @@ FeedbackUtils.prototype.getEmptyContainerBlock_ = function() {
  * Check whether the user code has all the blocks required for the level.
  * @return {boolean} true if all blocks are present, false otherwise.
  */
-FeedbackUtils.prototype.hasAllRequiredBlocks_ = function() {
-  return this.getMissingRequiredBlocks_().blocksToDisplay.length === 0;
+var hasAllRequiredBlocks = function() {
+  return exports.getMissingRequiredBlocks_().blocksToDisplay.length === 0;
 };
 
 /**
@@ -803,7 +762,7 @@ FeedbackUtils.prototype.hasAllRequiredBlocks_ = function() {
  * written.
  * @return {Array<Object>} The blocks.
  */
-FeedbackUtils.prototype.getUserBlocks_ = function() {
+var getUserBlocks = function() {
   var allBlocks = Blockly.mainBlockSpace.getAllBlocks();
   var blocks = allBlocks.filter(function(block) {
     return !block.disabled && block.isEditable() && block.type !== 'when_run';
@@ -817,7 +776,7 @@ FeedbackUtils.prototype.getUserBlocks_ = function() {
  * block count.
  * @return {Array<Object>} The blocks.
  */
-FeedbackUtils.prototype.getCountableBlocks_ = function() {
+var getCountableBlocks = function() {
   var allBlocks = Blockly.mainBlockSpace.getAllBlocks();
   var blocks = allBlocks.filter(function(block) {
     return !block.disabled;
@@ -827,29 +786,29 @@ FeedbackUtils.prototype.getCountableBlocks_ = function() {
 
 /**
  * Check to see if the user's code contains the required blocks for a level.
- * This never returns more than StudioApp.NUM_REQUIRED_BLOCKS_TO_FLAG.
+ * This never returns more than studioAppSingleton.NUM_REQUIRED_BLOCKS_TO_FLAG.
  * @return {{blocksToDisplay:!Array, message:?string}} 'missingBlocks' is an
  * array of array of strings where each array of strings is a set of blocks that
  * at least one of them should be used. Each block is represented as the prefix
  * of an id in the corresponding template.soy. 'message' is an optional message
  * to override the default error text.
  */
-FeedbackUtils.prototype.getMissingRequiredBlocks_ = function () {
+exports.getMissingRequiredBlocks_ = function () {
   var missingBlocks = [];
   var customMessage = null;
   var code = null;  // JavaScript code, which is initialized lazily.
   // TODO (br-pair) : we should probably just pass required_blocks
-  if (this.studioApp_.REQUIRED_BLOCKS && this.studioApp_.REQUIRED_BLOCKS.length) {
-    var userBlocks = this.getUserBlocks_();
+  if (studioAppSingleton.REQUIRED_BLOCKS && studioAppSingleton.REQUIRED_BLOCKS.length) {
+    var userBlocks = getUserBlocks();
     // For each list of required blocks
     // Keep track of the number of the missing block lists. It should not be
-    // bigger than StudioApp.NUM_REQUIRED_BLOCKS_TO_FLAG
+    // bigger than studioAppSingleton.NUM_REQUIRED_BLOCKS_TO_FLAG
     var missingBlockNum = 0;
     for (var i = 0;
-         i < this.studioApp_.REQUIRED_BLOCKS.length &&
-             missingBlockNum < this.studioApp_.NUM_REQUIRED_BLOCKS_TO_FLAG;
+         i < studioAppSingleton.REQUIRED_BLOCKS.length &&
+             missingBlockNum < studioAppSingleton.NUM_REQUIRED_BLOCKS_TO_FLAG;
          i++) {
-      var requiredBlock = this.studioApp_.REQUIRED_BLOCKS[i];
+      var requiredBlock = studioAppSingleton.REQUIRED_BLOCKS[i];
       // For each of the test
       // If at least one of the tests succeeded, we consider the required block
       // is used
@@ -877,7 +836,7 @@ FeedbackUtils.prototype.getMissingRequiredBlocks_ = function () {
       }
       if (!usedRequiredBlock) {
         missingBlockNum++;
-        missingBlocks = missingBlocks.concat(this.studioApp_.REQUIRED_BLOCKS[i][0]);
+        missingBlocks = missingBlocks.concat(studioAppSingleton.REQUIRED_BLOCKS[i][0]);
       }
     }
   }
@@ -890,8 +849,8 @@ FeedbackUtils.prototype.getMissingRequiredBlocks_ = function () {
 /**
  * Do we have any floating blocks not attached to an event block or function block?
  */
-FeedbackUtils.prototype.hasExtraTopBlocks = function () {
-  if (this.studioApp_.editCode) {
+exports.hasExtraTopBlocks = function () {
+  if (studioAppSingleton.editCode) {
     return false;
   }
   var topBlocks = Blockly.mainBlockSpace.getTopBlocks();
@@ -915,23 +874,19 @@ FeedbackUtils.prototype.hasExtraTopBlocks = function () {
 
 /**
  * Runs the tests and returns results.
- * @param {boolean} levelComplete Did the user successfully complete the level?
- * @param {boolean} shouldCheckForEmptyBlocks Whether empty blocks should cause
- *   a test fail result.
- * @param {Object} options
+ * @param  Did the user successfully complete the level
  * @return {number} The appropriate property of TestResults.
  */
-FeedbackUtils.prototype.getTestResults = function(levelComplete,
-    shouldCheckForEmptyBlocks, options) {
+exports.getTestResults = function(levelComplete, options) {
   options = options || {};
-  if (this.studioApp_.editCode) {
+  if (studioAppSingleton.editCode) {
     // TODO (cpirich): implement better test results for editCode
     return levelComplete ?
-        this.studioApp_.TestResults.ALL_PASS :
-        this.studioApp_.TestResults.TOO_FEW_BLOCKS_FAIL;
+      studioAppSingleton.TestResults.ALL_PASS :
+      studioAppSingleton.TestResults.TOO_FEW_BLOCKS_FAIL;
   }
-  if (shouldCheckForEmptyBlocks && this.hasEmptyContainerBlocks_()) {
-    var type = this.getEmptyContainerBlock_().type;
+  if (studioAppSingleton.CHECK_FOR_EMPTY_BLOCKS && hasEmptyContainerBlocks()) {
+    var type = getEmptyContainerBlock().type;
     if (type === 'procedures_defnoreturn' || type === 'procedures_defreturn') {
       return TestResults.EMPTY_FUNCTION_BLOCK_FAIL;
     }
@@ -940,52 +895,52 @@ FeedbackUtils.prototype.getTestResults = function(levelComplete,
     // for "controls_for_counter" blocks, for example.
     return TestResults.EMPTY_BLOCK_FAIL;
   }
-  if (!options.allowTopBlocks && this.hasExtraTopBlocks()) {
+  if (!options.allowTopBlocks && exports.hasExtraTopBlocks()) {
     return TestResults.EXTRA_TOP_BLOCKS_FAIL;
   }
   if (Blockly.useContractEditor || Blockly.useModalFunctionEditor) {
-    if (this.hasUnusedParam_()) {
+    if (hasUnusedParam()) {
       return TestResults.UNUSED_PARAM;
     }
-    if (this.hasUnusedFunction_()) {
+    if (hasUnusedFunction()) {
       return TestResults.UNUSED_FUNCTION;
     }
-    if (this.hasParamInputUnattached_()) {
+    if (hasParamInputUnattached()) {
       return TestResults.PARAM_INPUT_UNATTACHED;
     }
-    if (this.hasIncompleteBlockInFunction_()) {
+    if (hasIncompleteBlockInFunction()) {
       return TestResults.INCOMPLETE_BLOCK_IN_FUNCTION;
     }
   }
-  if (this.hasQuestionMarksInNumberField_()) {
+  if (hasQuestionMarksInNumberField()) {
     return TestResults.QUESTION_MARKS_IN_NUMBER_FIELD;
   }
-  if (!this.hasAllRequiredBlocks_()) {
-    return levelComplete ?
-        TestResults.MISSING_BLOCK_FINISHED :
-        TestResults.MISSING_BLOCK_UNFINISHED;
+  if (!hasAllRequiredBlocks()) {
+    return levelComplete ? TestResults.MISSING_BLOCK_FINISHED :
+      TestResults.MISSING_BLOCK_UNFINISHED;
   }
-  var numEnabledBlocks = this.getNumCountableBlocks();
+  var numEnabledBlocks = exports.getNumCountableBlocks();
   if (!levelComplete) {
-    if (this.studioApp_.IDEAL_BLOCK_NUM &&
-        this.studioApp_.IDEAL_BLOCK_NUM !== Infinity &&
-        numEnabledBlocks < this.studioApp_.IDEAL_BLOCK_NUM) {
+    if (studioAppSingleton.IDEAL_BLOCK_NUM && studioAppSingleton.IDEAL_BLOCK_NUM !== Infinity &&
+        numEnabledBlocks < studioAppSingleton.IDEAL_BLOCK_NUM) {
       return TestResults.TOO_FEW_BLOCKS_FAIL;
     }
     return TestResults.LEVEL_INCOMPLETE_FAIL;
   }
-  if (this.studioApp_.IDEAL_BLOCK_NUM &&
-      numEnabledBlocks > this.studioApp_.IDEAL_BLOCK_NUM) {
+  if (studioAppSingleton.IDEAL_BLOCK_NUM &&
+      numEnabledBlocks > studioAppSingleton.IDEAL_BLOCK_NUM) {
     return TestResults.TOO_MANY_BLOCKS_FAIL;
   } else {
     return TestResults.ALL_PASS;
   }
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.createModalDialogWithIcon = function(options) {
+var Keycodes = {
+  ENTER: 13,
+  SPACE: 32
+};
+
+exports.createModalDialogWithIcon = function(options) {
   var imageDiv = document.createElement('img');
   imageDiv.className = "modal-image";
   imageDiv.src = options.icon;
@@ -997,7 +952,7 @@ FeedbackUtils.prototype.createModalDialogWithIcon = function(options) {
 
   var btn = options.contentDiv.querySelector(options.defaultBtnSelector);
   var keydownHandler = function(e) {
-    if (e.keyCode == KeyCodes.ENTER || e.keyCode == KeyCodes.SPACE) {
+    if (e.keyCode == Keycodes.ENTER || e.keyCode == Keycodes.SPACE) {
       // Simulate a 'click':
       var event = new MouseEvent('click', {
           'view': window,
@@ -1022,26 +977,25 @@ FeedbackUtils.prototype.createModalDialogWithIcon = function(options) {
 /**
  * Check for '???' instead of a value in block fields.
  */
-FeedbackUtils.prototype.hasQuestionMarksInNumberField_ = function () {
+function hasQuestionMarksInNumberField() {
   return Blockly.mainBlockSpace.getAllBlocks().some(function(block) {
     return block.getTitles().some(function(title) {
       return title.value_ === '???';
     });
   });
-};
+}
 
 /**
  * Ensure that all procedure definitions actually use the parameters they define
  * inside the procedure.
  */
-FeedbackUtils.prototype.hasUnusedParam_ = function () {
-  var self = this;
+function hasUnusedParam() {
   return Blockly.mainBlockSpace.getAllBlocks().some(function(userBlock) {
     var params = userBlock.parameterNames_;
     // Only search procedure definitions
     return params && params.some(function(paramName) {
       // Unused param if there's no parameters_get descendant with the same name
-      return !self.hasMatchingDescendant_(userBlock, function(block) {
+      return !hasMatchingDescendant(userBlock, function(block) {
         return (block.type === 'parameters_get' ||
             block.type === 'functional_parameters_get' ||
             block.type === 'variables_get') &&
@@ -1049,12 +1003,12 @@ FeedbackUtils.prototype.hasUnusedParam_ = function () {
       });
     });
   });
-};
+}
 
 /**
  * Ensure that all procedure calls have each parameter input connected.
  */
-FeedbackUtils.prototype.hasParamInputUnattached_ = function () {
+function hasParamInputUnattached() {
   return Blockly.mainBlockSpace.getAllBlocks().some(function(userBlock) {
     // Only check procedure_call* blocks
     if (!/^procedures_call/.test(userBlock.type)) {
@@ -1067,12 +1021,12 @@ FeedbackUtils.prototype.hasParamInputUnattached_ = function () {
       return !argInput.connection.targetConnection;
     });
   });
-};
+}
 
 /**
  * Ensure that all user-declared procedures have associated call blocks.
  */
-FeedbackUtils.prototype.hasUnusedFunction_ = function () {
+function hasUnusedFunction() {
   var userDefs = [];
   var callBlocks = {};
   Blockly.mainBlockSpace.getAllBlocks().forEach(function (block) {
@@ -1085,19 +1039,18 @@ FeedbackUtils.prototype.hasUnusedFunction_ = function () {
   });
   // Unused function if some user def doesn't have a matching call
   return userDefs.some(function(name) { return !callBlocks[name]; });
-};
+}
 
 /**
  * Ensure there are no incomplete blocks inside any function definitions.
  */
-FeedbackUtils.prototype.hasIncompleteBlockInFunction_ = function () {
-  var self = this;
+function hasIncompleteBlockInFunction() {
   return Blockly.mainBlockSpace.getAllBlocks().some(function(userBlock) {
     // Only search procedure definitions
     if (!userBlock.parameterNames_) {
       return false;
     }
-    return self.hasMatchingDescendant_(userBlock, function(block) {
+    return hasMatchingDescendant(userBlock, function(block) {
       // Incomplete block if any input connection target is null
       return block.inputList.some(function(input) {
         return input.type === Blockly.INPUT_VALUE &&
@@ -1105,18 +1058,17 @@ FeedbackUtils.prototype.hasIncompleteBlockInFunction_ = function () {
       });
     });
   });
-};
+}
 
 /**
  * Returns true if any descendant (inclusive) of the given node matches the
  * given filter.
  */
-FeedbackUtils.prototype.hasMatchingDescendant_ = function (node, filter) {
+function hasMatchingDescendant(node, filter) {
   if (filter(node)) {
     return true;
   }
-  var self = this;
   return node.childBlocks_.some(function (child) {
-    return self.hasMatchingDescendant_(child, filter);
+    return hasMatchingDescendant(child, filter);
   });
-};
+}

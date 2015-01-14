@@ -7,7 +7,7 @@
 
 'use strict';
 
-var studioApp = require('../StudioApp').singleton;
+var studioAppSingleton = require('../base');
 var skins = require('../skins');
 var page = require('../templates/page.html');
 var dom = require('../dom');
@@ -20,12 +20,12 @@ var Jigsaw = module.exports;
 var level;
 var skin;
 
-var ResultType = studioApp.ResultType;
-var TestResults = studioApp.TestResults;
+var ResultType = studioAppSingleton.ResultType;
+var TestResults = studioAppSingleton.TestResults;
 
-studioApp.setCheckForEmptyBlocks(true);
+studioAppSingleton.CHECK_FOR_EMPTY_BLOCKS = true;
 //The number of blocks to show as feedback.
-studioApp.NUM_REQUIRED_BLOCKS_TO_FLAG = 1;
+studioAppSingleton.NUM_REQUIRED_BLOCKS_TO_FLAG = 1;
 
 // Never bump neighbors for Jigsaw
 Blockly.BUMP_UNCONNECTED = false;
@@ -121,10 +121,10 @@ Jigsaw.init = function(config) {
   Blockly.SNAP_RADIUS = level.snapRadius || 90;
 
   config.html = page({
-    assetUrl: studioApp.assetUrl,
+    assetUrl: studioAppSingleton.assetUrl,
     data: {
-      localeDirection: studioApp.localeDirection(),
-      controls: require('./controls.html')({assetUrl: studioApp.assetUrl}),
+      localeDirection: studioAppSingleton.localeDirection(),
+      controls: require('./controls.html')({assetUrl: studioAppSingleton.assetUrl}),
       editCode: level.editCode,
       blockCounterClass: 'block-counter-default'
     }
@@ -132,9 +132,9 @@ Jigsaw.init = function(config) {
 
   // TODO (br-pair) : I think this is something that's happening in all apps?
   config.loadAudio = function() {
-    studioApp.loadAudio(skin.winSound, 'win');
-    studioApp.loadAudio(skin.startSound, 'start');
-    studioApp.loadAudio(skin.failureSound, 'failure');
+    studioAppSingleton.loadAudio(skin.winSound, 'win');
+    studioAppSingleton.loadAudio(skin.startSound, 'start');
+    studioAppSingleton.loadAudio(skin.failureSound, 'failure');
   };
 
   config.afterInject = function() {
@@ -156,7 +156,7 @@ Jigsaw.init = function(config) {
   config.enableShowCode = false;
   config.enableShowBlockCount = false;
 
-  studioApp.init(config);
+  studioAppSingleton.init(config);
 
   document.getElementById('runButton').style.display = 'none';
   Jigsaw.successListener = Blockly.mainBlockSpaceEditor.addChangeListener(function(evt) {
@@ -184,11 +184,11 @@ function checkForSuccess() {
 
 /**
  * App specific displayFeedback function that calls into
- * studioApp.displayFeedback when appropriate
+ * studioAppSingleton.displayFeedback when appropriate
  */
 var displayFeedback = function() {
   if (!Jigsaw.waitingForReport) {
-    studioApp.displayFeedback({
+    studioAppSingleton.displayFeedback({
       app: 'Jigsaw',
       skin: skin.id,
       feedbackType: Jigsaw.testResults,
@@ -221,14 +221,14 @@ Jigsaw.onPuzzleComplete = function() {
   // Note that we have not yet animated the succesful run
   var levelComplete = (Jigsaw.result == ResultType.SUCCESS);
 
-  Jigsaw.testResults = studioApp.getTestResults(levelComplete, {
+  Jigsaw.testResults = studioAppSingleton.getTestResults(levelComplete, {
     allowTopBlocks: true
   });
 
   if (Jigsaw.testResults >= TestResults.FREE_PLAY) {
-    studioApp.playAudio('win');
+    studioAppSingleton.playAudio('win');
   } else {
-    studioApp.playAudio('failure');
+    studioAppSingleton.playAudio('failure');
   }
 
   var xml = Blockly.Xml.blockSpaceToDom(Blockly.mainBlockSpace);
@@ -237,7 +237,7 @@ Jigsaw.onPuzzleComplete = function() {
   Jigsaw.waitingForReport = true;
 
   // Report result to server.
-  studioApp.report({
+  studioAppSingleton.report({
      app: 'Jigsaw',
      level: level.id,
      result: Jigsaw.result === ResultType.SUCCESS,

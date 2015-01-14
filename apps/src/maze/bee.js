@@ -12,9 +12,8 @@ var EMPTY_NECTAR = 98; // flower with 0 honey
 // FC is short for FlowerComb, which we were originally using instead of cloud
 var CLOUD_MARKER = 'FC';
 
-var Bee = function (maze, studioApp, config) {
+var Bee = function (maze, config) {
   this.maze_ = maze;
-  this.studioApp_ = studioApp;
   this.skin_ = config.skin;
   this.defaultFlowerColor_ = (config.level.flowerType === 'redWithNectar' ?
     'red' : 'purple');
@@ -139,7 +138,7 @@ Bee.prototype.getTestResults = function (terminationValue) {
     case TerminationValue.UNCHECKED_PURPLE:
     case TerminationValue.INSUFFICIENT_NECTAR:
     case TerminationValue.INSUFFICIENT_HONEY:
-      var testResults = this.studioApp_.getTestResults(true);
+      var testResults = StudioApp.getTestResults(true);
       // If we have a non-app specific failure, we want that to take precedence.
       // Values over TOO_MANY_BLOCKS_FAIL are not true failures, but indicate
       // a suboptimal solution, so in those cases we want to return our
@@ -150,7 +149,7 @@ Bee.prototype.getTestResults = function (terminationValue) {
       return testResults;
   }
 
-  return this.studioApp_.getTestResults(false);
+  return StudioApp.getTestResults(false);
 };
 
 /**
@@ -372,12 +371,12 @@ Bee.prototype.honeyAvailable = function () {
 };
 
 // ANIMATIONS
-Bee.prototype.playAudio_ = function (sound) {
+function playAudio (sound) {
   // Check for StudioApp, which will often be undefined in unit tests
-  if (this.studioApp_) {
-    this.studioApp_.playAudio(sound);
+  if (StudioApp) {
+    StudioApp.playAudio(sound);
   }
-};
+}
 
 Bee.prototype.animateGetNectar = function () {
   var col = this.maze_.pegmanX;
@@ -388,7 +387,7 @@ Bee.prototype.animateGetNectar = function () {
       "there was no nectar to be had");
   }
 
-  this.playAudio_('nectar');
+  playAudio('nectar');
   this.gotNectarAt(row, col);
 
   this.maze_.gridItemDrawer.updateItemImage(row, col, true);
@@ -404,7 +403,7 @@ Bee.prototype.animateMakeHoney = function () {
       "we arent at a hive or dont have nectar");
   }
 
-  this.playAudio_('honey');
+  playAudio('honey');
   this.madeHoneyAt(row, col);
 
   this.maze_.gridItemDrawer.updateItemImage(row, col, true);

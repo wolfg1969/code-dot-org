@@ -152,7 +152,6 @@ var constants = require('./constants.js');
 var msg = require('../locale/ms_my/common');
 var blockUtils = require('./block_utils');
 var url = require('url');
-var FeedbackUtils = require('./feedback');
 
 /**
 * The minimum width of a playable whole blockly game.
@@ -170,8 +169,8 @@ var BLOCK_Y_COORDINATE = 30;
 var MAX_PHONE_WIDTH = 500;
 
 
-var StudioApp = function () {
-  this.feedback_ = new FeedbackUtils(this);
+var StudioAppClass = function () {
+  this.feedback_ = null;
 
   /**
   * The parent directory of the apps. Contains common.js.
@@ -206,10 +205,10 @@ var StudioApp = function () {
   // The following properties get their non-default values set by the application.
 
   /**
-   * Whether to alert user to empty blocks, short-circuiting all other tests.
-   * @member {boolean}
-   */
-  this.checkForEmptyBlocks_ = false;
+  * Whether to alert user to empty blocks, short-circuiting all other tests.
+  */
+  // TODO (br-pair) : this isnt actually a constant
+  this.CHECK_FOR_EMPTY_BLOCKS = undefined;
 
   /**
   * The ideal number of blocks to solve this level.  Users only get 2
@@ -289,13 +288,13 @@ var StudioApp = function () {
 
   this.MIN_WORKSPACE_HEIGHT = undefined;
 };
-module.exports = StudioApp;
-StudioApp.singleton = new StudioApp();
+
+module.exports = StudioAppClass;
 
 /**
- * Configure StudioApp options
+ * Configure StudioAppClass options
  */
-StudioApp.prototype.configure = function (options) {
+StudioAppClass.prototype.configure = function (options) {
   this.BASE_URL = options.baseUrl;
   this.CACHE_BUST = options.cacheBust;
   this.LOCALE = options.locale || this.LOCALE;
@@ -314,7 +313,7 @@ StudioApp.prototype.configure = function (options) {
 /**
  * Common startup tasks for all apps.
  */
-StudioApp.prototype.init = function(config) {
+StudioAppClass.prototype.init = function(config) {
   if (!config) {
     config = {};
   }
@@ -323,7 +322,7 @@ StudioApp.prototype.init = function(config) {
 
   this.configureDom_(config);
 
-  if (config.hideSource) {
+  if (config.hide_source) {
     this.handleHideSource_({
       containerId: config.containerId,
       embed: config.embed,
@@ -518,7 +517,7 @@ StudioApp.prototype.init = function(config) {
 /**
  *
  */
-StudioApp.prototype.handleSharing_ = function (options) {
+StudioAppClass.prototype.handleSharing_ = function (options) {
   // 1. Move the buttons, 2. Hide the slider in the share page for mobile.
   var belowVisualization = document.getElementById('belowVisualization');
   if (dom.isMobile()) {
@@ -582,9 +581,9 @@ StudioApp.prototype.handleSharing_ = function (options) {
 /**
  * Get the url of path appended to BASE_URL
  */
-StudioApp.prototype.assetUrl_ = function (path) {
+StudioAppClass.prototype.assetUrl_ = function (path) {
   if (this.BASE_URL === undefined) {
-    throw new Error('StudioApp BASE_URL has not been set. ' +
+    throw new Error('StudioAppClass BASE_URL has not been set. ' +
       'Call configure() first');
   }
   return this.BASE_URL + path;
@@ -596,7 +595,7 @@ StudioApp.prototype.assetUrl_ = function (path) {
  * @param {boolean} shouldPlayOpeningAnimation True if an opening animation is
  *   to be played.
  */
-StudioApp.prototype.reset = function (shouldPlayOpeningAnimation) {
+StudioAppClass.prototype.reset = function (shouldPlayOpeningAnimation) {
   // TODO (bbuchanan): Look for comon reset logic we can pull here
   // Override in app subclass
 };
@@ -605,13 +604,13 @@ StudioApp.prototype.reset = function (shouldPlayOpeningAnimation) {
 /**
  * Override to change run behavior.
  */
-StudioApp.prototype.runButtonClick = function() {};
+StudioAppClass.prototype.runButtonClick = function() {};
 
 /**
  * Toggle whether run button or reset button is shown
  * @param {string} button Button to show, either "run" or "reset"
  */
-StudioApp.prototype.toggleRunReset = function(button) {
+StudioAppClass.prototype.toggleRunReset = function(button) {
   var showRun = (button === 'run');
   if (button !== 'run' && button !== 'reset') {
     throw "Unexpected input";
@@ -628,7 +627,7 @@ StudioApp.prototype.toggleRunReset = function(button) {
 /**
  *
  */
-StudioApp.prototype.loadAudio = function(filenames, name) {
+StudioAppClass.prototype.loadAudio = function(filenames, name) {
   if (this.usingBlockly) {
     Blockly.loadAudio_(filenames, name);
   } else if (this.cdoSounds) {
@@ -648,7 +647,7 @@ StudioApp.prototype.loadAudio = function(filenames, name) {
 /**
  *
  */
-StudioApp.prototype.playAudio = function(name, options) {
+StudioAppClass.prototype.playAudio = function(name, options) {
   options = options || {};
   var defaultOptions = {volume: 0.5};
   var newOptions = utils.extend(defaultOptions, options);
@@ -662,7 +661,7 @@ StudioApp.prototype.playAudio = function(name, options) {
 /**
  *
  */
-StudioApp.prototype.stopLoopingAudio = function(name) {
+StudioAppClass.prototype.stopLoopingAudio = function(name) {
   if (this.usingBlockly) {
     Blockly.stopLoopingAudio(name);
   } else if (this.cdoSounds) {
@@ -682,7 +681,7 @@ StudioApp.prototype.stopLoopingAudio = function(name) {
 *    true.
 * @param {DomElement} div The parent div in which to insert Blockly.
 */
-StudioApp.prototype.inject = function(div, options) {
+StudioAppClass.prototype.inject = function(div, options) {
   var defaults = {
     assetUrl: this.assetUrl,
     rtl: this.isRtl(),
@@ -695,7 +694,7 @@ StudioApp.prototype.inject = function(div, options) {
 /**
  * Returns true if the current HTML page is in right-to-left language mode.
  */
-StudioApp.prototype.isRtl = function() {
+StudioAppClass.prototype.isRtl = function() {
   var head = document.getElementsByTagName('head')[0];
   if (head && head.parentElement) {
     var dir = head.parentElement.getAttribute('dir');
@@ -708,7 +707,7 @@ StudioApp.prototype.isRtl = function() {
 /**
  * @return {string} Locale direction string based on app direction.
  */
-StudioApp.prototype.localeDirection = function() {
+StudioAppClass.prototype.localeDirection = function() {
   return (this.isRtl() ? 'rtl' : 'ltr');
 };
 
@@ -717,7 +716,7 @@ StudioApp.prototype.localeDirection = function() {
 * XML argument may be generated from the console with:
 * Blockly.Xml.domToText(Blockly.Xml.blockSpaceToDom(Blockly.mainBlockSpace)).slice(5, -6)
 */
-StudioApp.prototype.initReadonly = function(options) {
+StudioAppClass.prototype.initReadonly = function(options) {
   Blockly.inject(document.getElementById('blockly'), {
     assetUrl: this.assetUrl,
     readOnly: true,
@@ -731,7 +730,7 @@ StudioApp.prototype.initReadonly = function(options) {
 * Load the editor with blocks.
 * @param {string} blocksXml Text representation of blocks.
 */
-StudioApp.prototype.loadBlocks = function(blocksXml) {
+StudioAppClass.prototype.loadBlocks = function(blocksXml) {
   var xml = parseXmlElement(blocksXml);
   Blockly.Xml.domToBlockSpace(Blockly.mainBlockSpace, xml);
 };
@@ -743,7 +742,7 @@ StudioApp.prototype.loadBlocks = function(blocksXml) {
 * @return {string} String representation of start blocks xml, including
 *    block position.
 */
-StudioApp.prototype.arrangeBlockPosition = function(startBlocks, arrangement) {
+StudioAppClass.prototype.arrangeBlockPosition = function(startBlocks, arrangement) {
   var type, arrangeX, arrangeY;
   var xml = parseXmlElement(startBlocks);
   var xmlChildNodes = this.sortBlocksByVisibility(xml.childNodes);
@@ -775,7 +774,7 @@ StudioApp.prototype.arrangeBlockPosition = function(startBlocks, arrangement) {
 * @return {Array.<Element>} A sorted array of xml blocks, with all
 *     visible blocks preceding all hidden blocks.
 */
-StudioApp.prototype.sortBlocksByVisibility = function(xmlBlocks) {
+StudioAppClass.prototype.sortBlocksByVisibility = function(xmlBlocks) {
   var visibleXmlBlocks = [];
   var hiddenXmlBlocks = [];
   for (var x = 0, xmlBlock; xmlBlocks && x < xmlBlocks.length; x++) {
@@ -790,11 +789,11 @@ StudioApp.prototype.sortBlocksByVisibility = function(xmlBlocks) {
   return visibleXmlBlocks.concat(hiddenXmlBlocks);
 };
 
-StudioApp.prototype.createModalDialogWithIcon = function(options) {
+StudioAppClass.prototype.createModalDialogWithIcon = function(options) {
   return this.feedback_.createModalDialogWithIcon(options);
 };
 
-StudioApp.prototype.showInstructions_ = function(level, autoClose) {
+StudioAppClass.prototype.showInstructions_ = function(level, autoClose) {
   var instructionsDiv = document.createElement('div');
   instructionsDiv.innerHTML = require('./templates/instructions.html')(level);
 
@@ -835,7 +834,7 @@ StudioApp.prototype.showInstructions_ = function(level, autoClose) {
 /**
 *  Resizes the blockly workspace.
 */
-StudioApp.prototype.onResize = function() {
+StudioAppClass.prototype.onResize = function() {
   var visualizationColumn = document.getElementById('visualizationColumn');
   var gameWidth = visualizationColumn.getBoundingClientRect().width;
 
@@ -895,7 +894,7 @@ StudioApp.prototype.onResize = function() {
 // |           toolboxWidth           |
 // |                 |         <--------- workspaceWidth ---------->         |
 // |         <---------------- fullWorkspaceWidth ----------------->         |
-StudioApp.prototype.resizeHeaders = function (fullWorkspaceWidth) {
+StudioAppClass.prototype.resizeHeaders = function (fullWorkspaceWidth) {
   var minWorkspaceWidthForShowCode = this.editCode ? 250 : 450;
   var toolboxWidth = 0;
   if (this.editCode) {
@@ -930,7 +929,7 @@ StudioApp.prototype.resizeHeaders = function (fullWorkspaceWidth) {
 * @param {?string} id ID of block that triggered this action.
 * @param {boolean} spotlight Optional.  Highlight entire block if true
 */
-StudioApp.prototype.highlight = function(id, spotlight) {
+StudioAppClass.prototype.highlight = function(id, spotlight) {
   if (this.usingBlockly) {
     if (id) {
       var m = id.match(/^block_id_(\d+)$/);
@@ -946,7 +945,7 @@ StudioApp.prototype.highlight = function(id, spotlight) {
 /**
 * Remove highlighting from all blocks
 */
-StudioApp.prototype.clearHighlighting = function () {
+StudioAppClass.prototype.clearHighlighting = function () {
   this.highlight(null);
 };
 
@@ -956,7 +955,7 @@ StudioApp.prototype.clearHighlighting = function () {
 * @param {{feedbackType: number}} Test results (a constant property of
 *     this.TestResults).
 */
-StudioApp.prototype.displayFeedback = function(options) {
+StudioAppClass.prototype.displayFeedback = function(options) {
   options.Dialog = this.Dialog;
   options.onContinue = this.onContinue;
   options.backToPreviousLevel = this.backToPreviousLevel;
@@ -971,20 +970,16 @@ StudioApp.prototype.displayFeedback = function(options) {
 };
 
 /**
- * Runs the tests and returns results.
- * @param {boolean} levelComplete Was the level completed successfully?
- * @param {Object} options
- * @return {number} The appropriate property of TestResults.
+ *
  */
-StudioApp.prototype.getTestResults = function(levelComplete, options) {
-  return this.feedback_.getTestResults(levelComplete,
-      this.checkForEmptyBlocks_, options);
+StudioAppClass.prototype.getTestResults = function(levelComplete, options) {
+  return this.feedback_.getTestResults(levelComplete, options);
 };
 
 // Builds the dom to get more info from the user. After user enters info
 // and click "create level" onAttemptCallback is called to deliver the info
 // to the server.
-StudioApp.prototype.builderForm_ = function(onAttemptCallback) {
+StudioAppClass.prototype.builderForm_ = function(onAttemptCallback) {
   var builderDetails = document.createElement('div');
   builderDetails.innerHTML = require('./templates/builder.html')();
   var dialog = this.createModalDialogWithIcon({
@@ -1017,7 +1012,7 @@ StudioApp.prototype.builderForm_ = function(onAttemptCallback) {
 * {string} program The user program, which will get URL-encoded.
 * {function} onComplete Function to be called upon completion.
 */
-StudioApp.prototype.report = function(options) {
+StudioAppClass.prototype.report = function(options) {
   // copy from options: app, level, result, testResult, program, onComplete
   var report = options;
   report.pass = this.feedback_.canContinueToNextLevel(options.testResult);
@@ -1053,7 +1048,7 @@ StudioApp.prototype.report = function(options) {
 /**
 * Click the reset button.  Reset the application.
 */
-StudioApp.prototype.resetButtonClick = function() {
+StudioAppClass.prototype.resetButtonClick = function() {
   this.onResetPressed();
   this.toggleRunReset('run');
   this.clearHighlighting();
@@ -1067,7 +1062,7 @@ StudioApp.prototype.resetButtonClick = function() {
 /**
 * Add count of blocks used.
 */
-StudioApp.prototype.updateBlockCount = function() {
+StudioAppClass.prototype.updateBlockCount = function() {
   // If the number of block used is bigger than the ideal number of blocks,
   // set it to be yellow, otherwise, keep it as black.
   var element = document.getElementById('blockUsed');
@@ -1088,7 +1083,7 @@ StudioApp.prototype.updateBlockCount = function() {
 /**
  * Set the ideal Number of blocks.
  */
-StudioApp.prototype.setIdealBlockNumber_ = function() {
+StudioAppClass.prototype.setIdealBlockNumber_ = function() {
   var element = document.getElementById('idealBlockNumber');
   if (!element) {
     return;
@@ -1105,7 +1100,7 @@ StudioApp.prototype.setIdealBlockNumber_ = function() {
 /**
  *
  */
-StudioApp.prototype.fixViewportForSmallScreens_ = function (viewport) {
+StudioAppClass.prototype.fixViewportForSmallScreens_ = function (viewport) {
   var deviceWidth;
   var desiredWidth;
   var minWidth;
@@ -1139,13 +1134,13 @@ StudioApp.prototype.fixViewportForSmallScreens_ = function (viewport) {
 /**
  *
  */
-StudioApp.prototype.setConfigValues_ = function (config) {
+StudioAppClass.prototype.setConfigValues_ = function (config) {
   this.share = config.share;
 
   // if true, dont provide links to share on fb/twitter
   this.disableSocialShare = config.disableSocialShare;
   this.sendToPhone = config.sendToPhone;
-  this.noPadding = config.noPadding;
+  this.noPadding = config.no_padding;
 
   this.IDEAL_BLOCK_NUM = config.level.ideal || Infinity;
   this.MIN_WORKSPACE_HEIGHT = config.level.minWorkspaceHeight || 800;
@@ -1173,7 +1168,7 @@ StudioApp.prototype.setConfigValues_ = function (config) {
  * Begin modifying the DOM based on config.
  * Note: Has side effects on config
  */
-StudioApp.prototype.configureDom_ = function (config) {
+StudioAppClass.prototype.configureDom_ = function (config) {
   var container = document.getElementById(config.containerId);
   container.innerHTML = config.html;
   var runButton = container.querySelector('#runButton');
@@ -1209,7 +1204,7 @@ StudioApp.prototype.configureDom_ = function (config) {
     // Enable param & var editing in levelbuilder, regardless of level setting
     config.level.disableParamEditing = false;
     config.level.disableVariableEditing = false;
-  } else if (!config.hideSource) {
+  } else if (!config.hide_source) {
     visualizationColumn.style.minHeight = this.MIN_WORKSPACE_HEIGHT + 'px';
   }
 
@@ -1223,7 +1218,7 @@ StudioApp.prototype.configureDom_ = function (config) {
 /**
  *
  */
-StudioApp.prototype.handleHideSource_ = function (options) {
+StudioAppClass.prototype.handleHideSource_ = function (options) {
   var container = document.getElementById(options.containerId);
   this.hideSource = true;
   var workspaceDiv = this.editCode ?
@@ -1264,7 +1259,7 @@ StudioApp.prototype.handleHideSource_ = function (options) {
   }
 };
 
-StudioApp.prototype.handleEditCode_ = function (options) {
+StudioAppClass.prototype.handleEditCode_ = function (options) {
   // using window.require forces us to use requirejs version of require
   window.require(['droplet'], _.bind(function(droplet) {
     var displayMessage, examplePrograms, messageElement, onChange, startingText;
@@ -1300,20 +1295,12 @@ StudioApp.prototype.handleEditCode_ = function (options) {
 };
 
 /**
- * Set whether to alert user to empty blocks, short-circuiting all other tests.
- * @param {boolean} checkBlocks Whether to check for empty blocks.
- */
-StudioApp.prototype.setCheckForEmptyBlocks = function (checkBlocks) {
-  this.checkForEmptyBlocks_ = checkBlocks;
-};
-
-/**
  *
  */
-StudioApp.prototype.handleUsingBlockly_ = function (config) {
+StudioAppClass.prototype.handleUsingBlockly_ = function (config) {
   // Allow empty blocks if editing blocks.
   if (config.level.edit_blocks) {
-    this.checkForEmptyBlocks_ = false;
+    this.CHECK_FOR_EMPTY_BLOCKS = false;
     if (config.level.edit_blocks === 'required_blocks' ||
       config.level.edit_blocks === 'toolbox_blocks') {
       // Don't show when run block for toolbox/required block editing
@@ -1374,7 +1361,7 @@ StudioApp.prototype.handleUsingBlockly_ = function (config) {
 /**
  * Modify the workspace header after a droplet blocks/code toggle
  */
-StudioApp.prototype.updateHeadersAfterDropletToggle_ = function (usingBlocks) {
+StudioAppClass.prototype.updateHeadersAfterDropletToggle_ = function (usingBlocks) {
   // Update header titles:
   var showCodeHeader = document.getElementById('show-code-header');
   var newButtonTitle = usingBlocks ? msg.showCodeHeader() :
@@ -1399,21 +1386,23 @@ StudioApp.prototype.updateHeadersAfterDropletToggle_ = function (usingBlocks) {
 /**
  * Do we have any floating blocks not attached to an event block or function block?
  */
-StudioApp.prototype.hasExtraTopBlocks = function () {
+StudioAppClass.prototype.hasExtraTopBlocks = function () {
   return this.feedback_.hasExtraTopBlocks();
 };
 
-},{"../locale/ms_my/common":40,"./ResizeSensor":1,"./block_utils":4,"./constants.js":7,"./dom":8,"./feedback":9,"./templates/builder.html":16,"./templates/buttons.html":17,"./templates/instructions.html":19,"./templates/learn.html":20,"./templates/makeYourOwn.html":21,"./utils":28,"./xml":39,"url":52}],3:[function(require,module,exports){
+},{"../locale/ms_my/common":41,"./ResizeSensor":1,"./block_utils":5,"./constants.js":8,"./dom":9,"./templates/builder.html":17,"./templates/buttons.html":18,"./templates/instructions.html":20,"./templates/learn.html":21,"./templates/makeYourOwn.html":22,"./utils":29,"./xml":40,"url":53}],3:[function(require,module,exports){
 var utils = require('./utils');
 var _ = utils.getLodash();
 var requiredBlockUtils = require('./required_block_utils');
-var studioApp = require('./StudioApp').singleton;
+var StudioAppClass = require('./StudioApp');
+
+var studioAppSingleton = require('./base');
+window.StudioApp = studioAppSingleton;
 
 // TODO (br-pair) : This is to expose methods we need in the global namespace
 // for testing purpose. Would be nice to eliminate this eventually.
 window.__TestInterface = {
-  loadBlocks: _.bind(studioApp.loadBlocks, studioApp),
-  arrangeBlockPosition: _.bind(studioApp.arrangeBlockPosition, studioApp)
+  loadBlocks: _.bind(studioAppSingleton.loadBlocks, studioAppSingleton)
 };
 
 var addReadyListener = require('./dom').addReadyListener;
@@ -1439,11 +1428,11 @@ module.exports = function(app, levels, options) {
     options.level = level;
   }
 
-  studioApp.configure(options);
+  studioAppSingleton.configure(options);
 
-  options.skin = options.skinsModule.load(studioApp.assetUrl, options.skinId);
+  options.skin = options.skinsModule.load(studioAppSingleton.assetUrl, options.skinId);
 
-  if (studioApp.usingBlockly) {
+  if (studioAppSingleton.usingBlockly) {
     var blockInstallOptions = {
       skin: options.skin,
       isK1: options.level && options.level.isK1
@@ -1462,7 +1451,7 @@ module.exports = function(app, levels, options) {
       if (app.initReadonly) {
         app.initReadonly(options);
       } else {
-        studioApp.initReadonly(options);
+        studioAppSingleton.initReadonly(options);
       }
     } else {
       app.init(options);
@@ -1473,7 +1462,49 @@ module.exports = function(app, levels, options) {
   });
 };
 
-},{"./StudioApp":2,"./blocksCommon":5,"./dom":8,"./required_block_utils":13,"./utils":28}],4:[function(require,module,exports){
+},{"./StudioApp":2,"./base":4,"./blocksCommon":6,"./dom":9,"./required_block_utils":14,"./utils":29}],4:[function(require,module,exports){
+/**
+ * Blockly Apps: Common code
+ *
+ * Copyright 2013 Google Inc.
+ * http://blockly.googlecode.com/
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * @fileoverview Common support code for Blockly apps.
+ * @author fraser@google.com (Neil Fraser)
+ */
+"use strict";
+
+/**
+ * Load the StudioAppClass and create a singleton instance of it, which we export
+ * as singleton. Most of our apps will load this singleton into a global, the
+ * expception currently being Artist
+ */
+var StudioAppClass = require('./StudioApp');
+var studioAppSingleton = new StudioAppClass();
+var feedback = require('./feedback');
+
+module.exports = studioAppSingleton;
+
+// TODO (br-pair) : This is how we associate our singleton feedback object with
+// our singleton StudioApp object. We can almost certainly do this more cleanly..
+feedback.applySingleton(studioAppSingleton);
+studioAppSingleton.feedback_ = feedback;
+
+},{"./StudioApp":2,"./feedback":10}],5:[function(require,module,exports){
 var xml = require('./xml');
 
 exports.createToolbox = function(blocks) {
@@ -1674,7 +1705,7 @@ exports.mathBlockXml = function (type, inputs, titles) {
   return str;
 };
 
-},{"./xml":39}],5:[function(require,module,exports){
+},{"./xml":40}],6:[function(require,module,exports){
 /**
  * Defines blocks useful in multiple blockly apps
  */
@@ -1839,7 +1870,7 @@ function installWhenRun(blockly, skin, isK1) {
   };
 }
 
-},{"../locale/ms_my/common":40}],6:[function(require,module,exports){
+},{"../locale/ms_my/common":41}],7:[function(require,module,exports){
 var INFINITE_LOOP_TRAP = '  executionInfo.checkTimeout(); if (executionInfo.isTerminated()){return;}\n';
 
 var LOOP_HIGHLIGHT = 'loopHighlight();\n';
@@ -2229,7 +2260,7 @@ exports.functionFromCode = function(code, options) {
   }
 };
 
-},{}],7:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 /**
  * @fileoverview Constants used in production code and tests.
  */
@@ -2249,7 +2280,7 @@ exports.ResultType = {
 /**
  * Enumeration of test results.
  * EMPTY_BLOCK_FAIL and EMPTY_FUNCTION_BLOCK_FAIL can only occur if
- * StudioApp.checkForEmptyBlocks_ is true.
+ * StudioApp.CHECK_FOR_EMPTY_BLOCKS is true.
  */
 exports.TestResults = {
   // Default value before any tests are run.
@@ -2296,16 +2327,7 @@ exports.BeeTerminationValue = {
   INSUFFICIENT_HONEY: 8  // Didn't make all honey by finish
 };
 
-exports.KeyCodes = {
-  ENTER: 13,
-  SPACE: 32,
-  LEFT: 37,
-  UP: 38,
-  RIGHT: 39,
-  DOWN: 40
-};
-
-},{}],8:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 exports.addReadyListener = function(callback) {
   if (document.readyState === "complete") {
     setTimeout(callback, 1);
@@ -2412,49 +2434,41 @@ exports.isIOS = function() {
   return reg.test(window.navigator.userAgent);
 };
 
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
+var trophy = require('./templates/trophy.html');
+var utils = require('./utils');
+var codegen = require('./codegen');
+var msg = require('../locale/ms_my/common');
+var dom = require('./dom');
+var xml = require('./xml');
+var _ = utils.getLodash();
+
+var FeedbackBlocks = require('./feedbackBlocks');
+
+// TODO (br-pair): This is a hack. We initially set our studioAppSingleton to
+// be the global StudioApp. This will be the case for all apps other than Artist.
+// However, that global is not necessarily set yet at the point where we load
+// feedback, and requiring base here introduces a circular dependency. Instead,
+// we depend on base apply the singleton to the feedback object i required.
+var studioAppSingleton;
+exports.applySingleton = function (singleton) {
+  studioAppSingleton = singleton;
+};
+
+var TestResults = require('./constants').TestResults;
+
 // NOTE: These must be kept in sync with activity_hint.rb in dashboard.
-var HINT_REQUEST_PLACEMENT = {
+var HintRequestPlacement = {
   NONE: 0,  // This value must not be changed.
   LEFT: 1,  // Hint request button is on left.
   RIGHT: 2  // Hint request button is on right.
 };
 
-/**
- * Bag of utility functions related to building and displaying feedback
- * to students.
- * @class
- * @param {StudioApp} studioApp A studioApp instance used to pull
- *   configuration and perform operations.
- */
-var FeedbackUtils = function (studioApp) {
-  this.studioApp_ = studioApp;
-};
-module.exports = FeedbackUtils;
-
-// Globals used in this file:
-//   Blockly
-
-var trophy = require('./templates/trophy.html');
-var utils = require('./utils');
-var _ = utils.getLodash();
-var codegen = require('./codegen');
-var msg = require('../locale/ms_my/common');
-var dom = require('./dom');
-var xml = require('./xml');
-var FeedbackBlocks = require('./feedbackBlocks');
-var constants = require('./constants');
-var TestResults = constants.TestResults;
-var KeyCodes = constants.KeyCodes;
-
-/**
- *
- */
-FeedbackUtils.prototype.displayFeedback = function(options) {
+exports.displayFeedback = function(options) {
   options.hintRequestExperiment = options.response &&
       options.response.hint_request_placement;
   options.level = options.level || {};
-  options.numTrophies = this.numTrophiesEarned_(options);
+  options.numTrophies = numTrophiesEarned(options);
 
   // Tracking event for level newly completed
   if (options.response && options.response.new_level_completed) {
@@ -2464,24 +2478,20 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
   var hadShareFailure = (options.response && options.response.share_failure);
   var showingSharing = options.showingSharing && !hadShareFailure;
 
-  var canContinue = this.canContinueToNextLevel(options.feedbackType);
-  var displayShowCode = this.studioApp_.enableShowCode && canContinue && !showingSharing;
+  var canContinue = exports.canContinueToNextLevel(options.feedbackType);
+  var displayShowCode = studioAppSingleton.enableShowCode && canContinue && !showingSharing;
   var feedback = document.createElement('div');
-  var sharingDiv = (canContinue && showingSharing) ? this.createSharingDiv(options) : null;
-  var showCode = displayShowCode ? this.getShowCodeElement_(options) : null;
-  var shareFailureDiv = hadShareFailure ? this.getShareFailure_(options) : null;
+  var sharingDiv = (canContinue && showingSharing) ? exports.createSharingDiv(options) : null;
+  var showCode = displayShowCode ? getShowCodeElement(options) : null;
+  var shareFailureDiv = hadShareFailure ? getShareFailure(options) : null;
   if (hadShareFailure) {
     trackEvent('Share', 'Failure', options.response.share_failure.type);
   }
-  var feedbackBlocks;
-  if (this.studioApp_.usingBlockly) {
-    feedbackBlocks = new FeedbackBlocks(options,
-                                        this.getMissingRequiredBlocks_(),
-                                        this.studioApp_);
-  }
+  var feedbackBlocks = new FeedbackBlocks(options, getMissingRequiredBlocks(),
+    studioAppSingleton);
   // feedbackMessage must be initialized after feedbackBlocks
   // because FeedbackBlocks can mutate options.response.hint.
-  var feedbackMessage = this.getFeedbackMessage_(options);
+  var feedbackMessage = getFeedbackMessage(options);
 
   if (feedbackMessage) {
     feedback.appendChild(feedbackMessage);
@@ -2495,11 +2505,11 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
         trackEvent('Trophy', concept_name, trophy_name);
       }
     }
-    var trophies = this.getTrophiesElement_(options);
+    var trophies = getTrophiesElement(options);
     feedback.appendChild(trophies);
   }
-  if (feedbackBlocks && feedbackBlocks.div) {
-    if (feedbackMessage && this.useSpecialFeedbackDesign_(options)) {
+  if (feedbackBlocks.div) {
+    if (feedbackMessage && useSpecialFeedbackDesign(options)) {
       // put the blocks iframe inside the feedbackMessage for this special case:
       feedbackMessage.appendChild(feedbackBlocks.div);
     } else {
@@ -2528,7 +2538,7 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
   }
 
   feedback.appendChild(
-    this.getFeedbackButtons_({
+    getFeedbackButtons({
       feedbackType: options.feedbackType,
       showPreviousButton: options.level.showPreviousLevelButton,
       isK1: options.level.isK1,
@@ -2545,10 +2555,10 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
   var onlyContinue = continueButton && !againButton && !previousLevelButton;
 
   var onHidden = onlyContinue ? options.onContinue : null;
-  var icon = canContinue ? this.studioApp_.winIcon : this.studioApp_.failureIcon;
+  var icon = canContinue ? studioAppSingleton.winIcon : studioAppSingleton.failureIcon;
   var defaultBtnSelector = onlyContinue ? '#continue-button' : '#again-button';
 
-  var feedbackDialog = this.createModalDialogWithIcon({
+  var feedbackDialog = exports.createModalDialogWithIcon({
     Dialog: options.Dialog,
     contentDiv: feedback,
     icon: icon,
@@ -2558,7 +2568,7 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
   });
 
   // Update the background color if it is set to be in special design.
-  if (this.useSpecialFeedbackDesign_(options)) {
+  if (useSpecialFeedbackDesign(options)) {
     if (options.response.design == "white_background") {
       document.getElementById('feedback-dialog')
           .className += " white-background";
@@ -2585,7 +2595,7 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
   // hint if the button gets pressed.
   if (hintRequestButton) {
     // Swap out the specific feedback message with a generic one.
-    var genericFeedback = this.getFeedbackMessage_({message: msg.genericFeedback()});
+    var genericFeedback = getFeedbackMessage({message: msg.genericFeedback()});
     var parentNode = feedbackMessage.parentNode;
     parentNode.replaceChild(genericFeedback, feedbackMessage);
 
@@ -2594,7 +2604,7 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
     // the feedback blocks into the correct location if needed.
     var feedbackBlocksParent = null;
     var feedbackBlocksNextSib = null;
-    if (feedbackBlocks && feedbackBlocks.div) {
+    if (feedbackBlocks.div) {
       feedbackBlocksParent = feedbackBlocks.div.parentNode;
       feedbackBlocksNextSib = feedbackBlocks.div.nextSibling;
       feedbackBlocksParent.removeChild(feedbackBlocks.div);
@@ -2610,7 +2620,7 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
       hintRequestButton.parentNode.removeChild(hintRequestButton);
 
       // Restore feedback blocks, if present.
-      if (feedbackBlocks && feedbackBlocks.div && feedbackBlocksParent) {
+      if (feedbackBlocks.div && feedbackBlocksParent) {
         feedbackBlocksParent.insertBefore(feedbackBlocks.div, feedbackBlocksNextSib);
         feedbackBlocks.show();
       }
@@ -2660,7 +2670,7 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
     backdrop: (options.app === 'flappy' ? 'static' : true)
   });
 
-  if (feedbackBlocks && feedbackBlocks.div) {
+  if (feedbackBlocks.div) {
     feedbackBlocks.show();
   }
 };
@@ -2670,12 +2680,12 @@ FeedbackUtils.prototype.displayFeedback = function(options) {
  * not disabled, are deletable.
  * @return {number} Number of blocks used.
  */
-FeedbackUtils.prototype.getNumBlocksUsed = function() {
+exports.getNumBlocksUsed = function() {
   var i;
-  if (this.studioApp_.editCode) {
+  if (studioAppSingleton.editCode) {
     var codeLines = 0;
     // quick and dirty method to count non-blank lines that don't start with //
-    var lines = this.getGeneratedCodeString_().split("\n");
+    var lines = getGeneratedCodeString().split("\n");
     for (i = 0; i < lines.length; i++) {
       if ((lines[i].length > 1) && (lines[i][0] != '/' || lines[i][1] != '/')) {
         codeLines++;
@@ -2683,7 +2693,7 @@ FeedbackUtils.prototype.getNumBlocksUsed = function() {
     }
     return codeLines;
   }
-  return this.getUserBlocks_().length;
+  return getUserBlocks().length;
 };
 
 /**
@@ -2691,12 +2701,12 @@ FeedbackUtils.prototype.getNumBlocksUsed = function() {
  * not disabled.
  * @return {number} Total number of blocks.
  */
-FeedbackUtils.prototype.getNumCountableBlocks = function() {
+exports.getNumCountableBlocks = function() {
   var i;
-  if (this.studioApp_.editCode) {
+  if (studioAppSingleton.editCode) {
     var codeLines = 0;
     // quick and dirty method to count non-blank lines that don't start with //
-    var lines = this.getGeneratedCodeString_().split("\n");
+    var lines = getGeneratedCodeString().split("\n");
     for (i = 0; i < lines.length; i++) {
       if ((lines[i].length > 1) && (lines[i][0] != '/' || lines[i][1] != '/')) {
         codeLines++;
@@ -2704,27 +2714,24 @@ FeedbackUtils.prototype.getNumCountableBlocks = function() {
     }
     return codeLines;
   }
-  return this.getCountableBlocks_().length;
+  return getCountableBlocks().length;
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.getFeedbackButtons_ = function(options) {
+var getFeedbackButtons = function(options) {
   var buttons = document.createElement('div');
   buttons.id = 'feedbackButtons';
   buttons.innerHTML = require('./templates/buttons.html')({
     data: {
       previousLevel:
-        !this.canContinueToNextLevel(options.feedbackType) &&
+        !exports.canContinueToNextLevel(options.feedbackType) &&
         options.showPreviousButton,
       tryAgain: options.feedbackType !== TestResults.ALL_PASS,
-      nextLevel: this.canContinueToNextLevel(options.feedbackType),
+      nextLevel: exports.canContinueToNextLevel(options.feedbackType),
       isK1: options.isK1,
       hintRequestExperiment: options.hintRequestExperiment &&
-          (options.hintRequestExperiment === HINT_REQUEST_PLACEMENT.LEFT ?
+          (options.hintRequestExperiment === HintRequestPlacement.LEFT ?
               'left' : 'right'),
-      assetUrl: this.studioApp_.assetUrl,
+      assetUrl: studioAppSingleton.assetUrl,
       freePlay: options.freePlay
     }
   });
@@ -2732,20 +2739,14 @@ FeedbackUtils.prototype.getFeedbackButtons_ = function(options) {
   return buttons;
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.getShareFailure_ = function(options) {
+var getShareFailure = function(options) {
   var shareFailure = options.response.share_failure;
   var shareFailureDiv = document.createElement('div');
   shareFailureDiv.innerHTML = require('./templates/shareFailure.html')({shareFailure: shareFailure});
   return shareFailureDiv;
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.useSpecialFeedbackDesign_ = function (options) {
+var useSpecialFeedbackDesign = function (options) {
  return options.response &&
         options.response.design &&
         options.response.hint;
@@ -2760,7 +2761,7 @@ FeedbackUtils.prototype.useSpecialFeedbackDesign_ = function (options) {
 //    specific result type (e.g., TestResults.EMPTY_BLOCK_FAIL).
 // 5. System-wide message (e.g., msg.emptyBlocksErrorMsg()) for specific
 //    result type (e.g., TestResults.EMPTY_BLOCK_FAIL).
-FeedbackUtils.prototype.getFeedbackMessage_ = function(options) {
+var getFeedbackMessage = function(options) {
   var feedback = document.createElement('p');
   feedback.className = 'congrats';
   var message;
@@ -2819,7 +2820,7 @@ FeedbackUtils.prototype.getFeedbackMessage_ = function(options) {
         break;
       case TestResults.TOO_MANY_BLOCKS_FAIL:
         message = msg.numBlocksNeeded({
-          numBlocks: this.studioApp_.IDEAL_BLOCK_NUM,
+          numBlocks: studioAppSingleton.IDEAL_BLOCK_NUM,
           puzzleNumber: options.level.puzzle_number || 0
         });
         break;
@@ -2871,7 +2872,7 @@ FeedbackUtils.prototype.getFeedbackMessage_ = function(options) {
   dom.setText(feedback, message);
 
   // Update the feedback box design, if the hint message came from server.
-  if (this.useSpecialFeedbackDesign_(options)) {
+  if (useSpecialFeedbackDesign(options)) {
     // Setup a new div
     var feedbackDiv = document.createElement('div');
     feedbackDiv.className = 'feedback-callout';
@@ -2880,7 +2881,7 @@ FeedbackUtils.prototype.getFeedbackMessage_ = function(options) {
     // Insert an image
     var imageDiv = document.createElement('img');
     imageDiv.className = "hint-image";
-    imageDiv.src = this.studioApp_.assetUrl(
+    imageDiv.src = studioAppSingleton.assetUrl(
       'media/lightbulb_for_' + options.response.design + '.png');
     feedbackDiv.appendChild(imageDiv);
     // Add new text
@@ -2895,17 +2896,14 @@ FeedbackUtils.prototype.getFeedbackMessage_ = function(options) {
   return feedback;
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.createSharingDiv = function(options) {
+exports.createSharingDiv = function(options) {
   if (!options.response || !options.response.level_source) {
     // don't even try if our caller didn't give us something that can be shared
     // options.response.level_source is the url that we are sharing
     return null;
   }
 
-  if (this.studioApp_.disableSocialShare) {
+  if (studioAppSingleton.disableSocialShare) {
     // Clear out our urls so that we don't display any of our social share links
     options.twitterUrl = undefined;
     options.facebookUrl = undefined;
@@ -2945,7 +2943,7 @@ FeedbackUtils.prototype.createSharingDiv = function(options) {
     options.facebookUrl = facebookUrl;
   }
 
-  options.assetUrl = this.studioApp_.assetUrl;
+  options.assetUrl = studioAppSingleton.assetUrl;
 
   var sharingDiv = document.createElement('div');
   sharingDiv.setAttribute('style', 'display:inline-block');
@@ -3013,10 +3011,8 @@ FeedbackUtils.prototype.createSharingDiv = function(options) {
   return sharingDiv;
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.numTrophiesEarned_ = function(options) {
+
+var numTrophiesEarned = function(options) {
   if (options.response && options.response.trophy_updates) {
     return options.response.trophy_updates.length;
   } else {
@@ -3024,10 +3020,7 @@ FeedbackUtils.prototype.numTrophiesEarned_ = function(options) {
   }
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.getTrophiesElement_ = function(options) {
+var getTrophiesElement = function(options) {
   var html = "";
   for (var i = 0; i < options.numTrophies; i++) {
     html += trophy({
@@ -3040,14 +3033,11 @@ FeedbackUtils.prototype.getTrophiesElement_ = function(options) {
   return trophies;
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.getShowCodeElement_ = function(options) {
+var getShowCodeElement = function(options) {
   var showCodeDiv = document.createElement('div');
   showCodeDiv.setAttribute('id', 'show-code');
 
-  var numLinesWritten = this.getNumBlocksUsed();
+  var numLinesWritten = exports.getNumBlocksUsed();
   var shouldShowTotalLines =
     (options.response &&
       options.response.total_lines &&
@@ -3060,10 +3050,10 @@ FeedbackUtils.prototype.getShowCodeElement_ = function(options) {
   });
 
   var showCodeButton = showCodeDiv.querySelector('#show-code-button');
-  showCodeButton.addEventListener('click', _.bind(function () {
-    showCodeDiv.appendChild(this.getGeneratedCodeElement_());
+  showCodeButton.addEventListener('click', function () {
+    showCodeDiv.appendChild(getGeneratedCodeElement());
     showCodeButton.style.display = 'none';
-  }, this));
+  });
 
   return showCodeDiv;
 };
@@ -3071,9 +3061,9 @@ FeedbackUtils.prototype.getShowCodeElement_ = function(options) {
 /**
  * Determines whether the user can proceed to the next level, based on the level feedback
  * @param {number} feedbackType A constant property of TestResults,
- *     typically produced by StudioApp.getTestResults().
+ *     typically produced by studioAppSingleton.getTestResults().
  */
-FeedbackUtils.prototype.canContinueToNextLevel = function(feedbackType) {
+exports.canContinueToNextLevel = function(feedbackType) {
   return (feedbackType === TestResults.ALL_PASS ||
     feedbackType === TestResults.TOO_MANY_BLOCKS_FAIL ||
     feedbackType ===  TestResults.APP_SPECIFIC_ACCEPTABLE_FAIL ||
@@ -3083,26 +3073,23 @@ FeedbackUtils.prototype.canContinueToNextLevel = function(feedbackType) {
 /**
  * Retrieve a string containing the user's generated Javascript code.
  */
-FeedbackUtils.prototype.getGeneratedCodeString_ = function() {
-  if (this.studioApp_.editCode) {
-    return this.studioApp_.editor ? this.studioApp_.editor.getValue() : '';
+var getGeneratedCodeString = function() {
+  if (studioAppSingleton.editCode) {
+    return studioAppSingleton.editor ? studioAppSingleton.editor.getValue() : '';
   }
   else {
     return codegen.workspaceCode(Blockly);
   }
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.getGeneratedCodeElement_ = function() {
+var getGeneratedCodeElement = function() {
   var codeInfoMsgParams = {
     berkeleyLink: "<a href='http://bjc.berkeley.edu/' target='_blank'>Berkeley</a>",
     harvardLink: "<a href='https://cs50.harvard.edu/' target='_blank'>Harvard</a>"
   };
 
-  var infoMessage = this.studioApp_.editCode ?  "" : msg.generatedCodeInfo(codeInfoMsgParams);
-  var code = this.getGeneratedCodeString_();
+  var infoMessage = studioAppSingleton.editCode ?  "" : msg.generatedCodeInfo(codeInfoMsgParams);
+  var code = getGeneratedCodeString();
 
   var codeDiv = document.createElement('div');
   codeDiv.innerHTML = require('./templates/code.html')({
@@ -3113,11 +3100,8 @@ FeedbackUtils.prototype.getGeneratedCodeElement_ = function() {
   return codeDiv;
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.showGeneratedCode = function(Dialog) {
-  var codeDiv = this.getGeneratedCodeElement_();
+exports.showGeneratedCode = function(Dialog) {
+  var codeDiv = getGeneratedCodeElement();
 
   var buttons = document.createElement('div');
   buttons.innerHTML = require('./templates/buttons.html')({
@@ -3127,10 +3111,10 @@ FeedbackUtils.prototype.showGeneratedCode = function(Dialog) {
   });
   codeDiv.appendChild(buttons);
 
-  var dialog = this.createModalDialogWithIcon({
+  var dialog = exports.createModalDialogWithIcon({
       Dialog: Dialog,
       contentDiv: codeDiv,
-      icon: this.studioApp_.icon,
+      icon: studioAppSingleton.icon,
       defaultBtnSelector: '#ok-button'
       });
 
@@ -3144,10 +3128,7 @@ FeedbackUtils.prototype.showGeneratedCode = function(Dialog) {
   dialog.show();
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.showToggleBlocksError = function(Dialog) {
+exports.showToggleBlocksError = function(Dialog) {
   var contentDiv = document.createElement('div');
   contentDiv.innerHTML = msg.toggleBlocksErrorMsg();
 
@@ -3159,10 +3140,10 @@ FeedbackUtils.prototype.showToggleBlocksError = function(Dialog) {
   });
   contentDiv.appendChild(buttons);
 
-  var dialog = this.createModalDialogWithIcon({
+  var dialog = exports.createModalDialogWithIcon({
       Dialog: Dialog,
       contentDiv: contentDiv,
-      icon: this.studioApp_.icon,
+      icon: studioAppSingleton.icon,
       defaultBtnSelector: '#ok-button'
   });
 
@@ -3180,7 +3161,7 @@ FeedbackUtils.prototype.showToggleBlocksError = function(Dialog) {
  * Check user's code for empty container blocks, such as "repeat".
  * @return {boolean} true if a block is empty (no blocks are nested inside).
  */
-FeedbackUtils.prototype.hasEmptyContainerBlocks_ = function() {
+var hasEmptyContainerBlocks = function() {
   var code = codegen.workspaceCode(Blockly);
   return (/\{\s*\}/).test(code);
 };
@@ -3189,7 +3170,7 @@ FeedbackUtils.prototype.hasEmptyContainerBlocks_ = function() {
  * Get an empty container block, if any are present.
  * @return {Blockly.Block} an empty container block, or null if none exist.
  */
-FeedbackUtils.prototype.getEmptyContainerBlock_ = function() {
+var getEmptyContainerBlock = function() {
   var blocks = Blockly.mainBlockSpace.getAllBlocks();
   for (var i = 0; i < blocks.length; i++) {
     var block = blocks[i];
@@ -3208,8 +3189,8 @@ FeedbackUtils.prototype.getEmptyContainerBlock_ = function() {
  * Check whether the user code has all the blocks required for the level.
  * @return {boolean} true if all blocks are present, false otherwise.
  */
-FeedbackUtils.prototype.hasAllRequiredBlocks_ = function() {
-  return this.getMissingRequiredBlocks_().blocksToDisplay.length === 0;
+var hasAllRequiredBlocks = function() {
+  return getMissingRequiredBlocks().blocksToDisplay.length === 0;
 };
 
 /**
@@ -3218,7 +3199,7 @@ FeedbackUtils.prototype.hasAllRequiredBlocks_ = function() {
  * written.
  * @return {Array<Object>} The blocks.
  */
-FeedbackUtils.prototype.getUserBlocks_ = function() {
+var getUserBlocks = function() {
   var allBlocks = Blockly.mainBlockSpace.getAllBlocks();
   var blocks = allBlocks.filter(function(block) {
     return !block.disabled && block.isEditable() && block.type !== 'when_run';
@@ -3232,7 +3213,7 @@ FeedbackUtils.prototype.getUserBlocks_ = function() {
  * block count.
  * @return {Array<Object>} The blocks.
  */
-FeedbackUtils.prototype.getCountableBlocks_ = function() {
+var getCountableBlocks = function() {
   var allBlocks = Blockly.mainBlockSpace.getAllBlocks();
   var blocks = allBlocks.filter(function(block) {
     return !block.disabled;
@@ -3242,29 +3223,29 @@ FeedbackUtils.prototype.getCountableBlocks_ = function() {
 
 /**
  * Check to see if the user's code contains the required blocks for a level.
- * This never returns more than StudioApp.NUM_REQUIRED_BLOCKS_TO_FLAG.
+ * This never returns more than studioAppSingleton.NUM_REQUIRED_BLOCKS_TO_FLAG.
  * @return {{blocksToDisplay:!Array, message:?string}} 'missingBlocks' is an
  * array of array of strings where each array of strings is a set of blocks that
  * at least one of them should be used. Each block is represented as the prefix
  * of an id in the corresponding template.soy. 'message' is an optional message
  * to override the default error text.
  */
-FeedbackUtils.prototype.getMissingRequiredBlocks_ = function () {
+var getMissingRequiredBlocks = function () {
   var missingBlocks = [];
   var customMessage = null;
   var code = null;  // JavaScript code, which is initialized lazily.
   // TODO (br-pair) : we should probably just pass required_blocks
-  if (this.studioApp_.REQUIRED_BLOCKS && this.studioApp_.REQUIRED_BLOCKS.length) {
-    var userBlocks = this.getUserBlocks_();
+  if (studioAppSingleton.REQUIRED_BLOCKS && studioAppSingleton.REQUIRED_BLOCKS.length) {
+    var userBlocks = getUserBlocks();
     // For each list of required blocks
     // Keep track of the number of the missing block lists. It should not be
-    // bigger than StudioApp.NUM_REQUIRED_BLOCKS_TO_FLAG
+    // bigger than studioAppSingleton.NUM_REQUIRED_BLOCKS_TO_FLAG
     var missingBlockNum = 0;
     for (var i = 0;
-         i < this.studioApp_.REQUIRED_BLOCKS.length &&
-             missingBlockNum < this.studioApp_.NUM_REQUIRED_BLOCKS_TO_FLAG;
+         i < studioAppSingleton.REQUIRED_BLOCKS.length &&
+             missingBlockNum < studioAppSingleton.NUM_REQUIRED_BLOCKS_TO_FLAG;
          i++) {
-      var requiredBlock = this.studioApp_.REQUIRED_BLOCKS[i];
+      var requiredBlock = studioAppSingleton.REQUIRED_BLOCKS[i];
       // For each of the test
       // If at least one of the tests succeeded, we consider the required block
       // is used
@@ -3292,7 +3273,7 @@ FeedbackUtils.prototype.getMissingRequiredBlocks_ = function () {
       }
       if (!usedRequiredBlock) {
         missingBlockNum++;
-        missingBlocks = missingBlocks.concat(this.studioApp_.REQUIRED_BLOCKS[i][0]);
+        missingBlocks = missingBlocks.concat(studioAppSingleton.REQUIRED_BLOCKS[i][0]);
       }
     }
   }
@@ -3305,8 +3286,8 @@ FeedbackUtils.prototype.getMissingRequiredBlocks_ = function () {
 /**
  * Do we have any floating blocks not attached to an event block or function block?
  */
-FeedbackUtils.prototype.hasExtraTopBlocks = function () {
-  if (this.studioApp_.editCode) {
+exports.hasExtraTopBlocks = function () {
+  if (studioAppSingleton.editCode) {
     return false;
   }
   var topBlocks = Blockly.mainBlockSpace.getTopBlocks();
@@ -3330,23 +3311,19 @@ FeedbackUtils.prototype.hasExtraTopBlocks = function () {
 
 /**
  * Runs the tests and returns results.
- * @param {boolean} levelComplete Did the user successfully complete the level?
- * @param {boolean} shouldCheckForEmptyBlocks Whether empty blocks should cause
- *   a test fail result.
- * @param {Object} options
+ * @param  Did the user successfully complete the level
  * @return {number} The appropriate property of TestResults.
  */
-FeedbackUtils.prototype.getTestResults = function(levelComplete,
-    shouldCheckForEmptyBlocks, options) {
+exports.getTestResults = function(levelComplete, options) {
   options = options || {};
-  if (this.studioApp_.editCode) {
+  if (studioAppSingleton.editCode) {
     // TODO (cpirich): implement better test results for editCode
     return levelComplete ?
-        this.studioApp_.TestResults.ALL_PASS :
-        this.studioApp_.TestResults.TOO_FEW_BLOCKS_FAIL;
+      studioAppSingleton.TestResults.ALL_PASS :
+      studioAppSingleton.TestResults.TOO_FEW_BLOCKS_FAIL;
   }
-  if (shouldCheckForEmptyBlocks && this.hasEmptyContainerBlocks_()) {
-    var type = this.getEmptyContainerBlock_().type;
+  if (studioAppSingleton.CHECK_FOR_EMPTY_BLOCKS && hasEmptyContainerBlocks()) {
+    var type = getEmptyContainerBlock().type;
     if (type === 'procedures_defnoreturn' || type === 'procedures_defreturn') {
       return TestResults.EMPTY_FUNCTION_BLOCK_FAIL;
     }
@@ -3355,52 +3332,52 @@ FeedbackUtils.prototype.getTestResults = function(levelComplete,
     // for "controls_for_counter" blocks, for example.
     return TestResults.EMPTY_BLOCK_FAIL;
   }
-  if (!options.allowTopBlocks && this.hasExtraTopBlocks()) {
+  if (!options.allowTopBlocks && exports.hasExtraTopBlocks()) {
     return TestResults.EXTRA_TOP_BLOCKS_FAIL;
   }
   if (Blockly.useContractEditor || Blockly.useModalFunctionEditor) {
-    if (this.hasUnusedParam_()) {
+    if (hasUnusedParam()) {
       return TestResults.UNUSED_PARAM;
     }
-    if (this.hasUnusedFunction_()) {
+    if (hasUnusedFunction()) {
       return TestResults.UNUSED_FUNCTION;
     }
-    if (this.hasParamInputUnattached_()) {
+    if (hasParamInputUnattached()) {
       return TestResults.PARAM_INPUT_UNATTACHED;
     }
-    if (this.hasIncompleteBlockInFunction_()) {
+    if (hasIncompleteBlockInFunction()) {
       return TestResults.INCOMPLETE_BLOCK_IN_FUNCTION;
     }
   }
-  if (this.hasQuestionMarksInNumberField_()) {
+  if (hasQuestionMarksInNumberField()) {
     return TestResults.QUESTION_MARKS_IN_NUMBER_FIELD;
   }
-  if (!this.hasAllRequiredBlocks_()) {
-    return levelComplete ?
-        TestResults.MISSING_BLOCK_FINISHED :
-        TestResults.MISSING_BLOCK_UNFINISHED;
+  if (!hasAllRequiredBlocks()) {
+    return levelComplete ? TestResults.MISSING_BLOCK_FINISHED :
+      TestResults.MISSING_BLOCK_UNFINISHED;
   }
-  var numEnabledBlocks = this.getNumCountableBlocks();
+  var numEnabledBlocks = exports.getNumCountableBlocks();
   if (!levelComplete) {
-    if (this.studioApp_.IDEAL_BLOCK_NUM &&
-        this.studioApp_.IDEAL_BLOCK_NUM !== Infinity &&
-        numEnabledBlocks < this.studioApp_.IDEAL_BLOCK_NUM) {
+    if (studioAppSingleton.IDEAL_BLOCK_NUM && studioAppSingleton.IDEAL_BLOCK_NUM !== Infinity &&
+        numEnabledBlocks < studioAppSingleton.IDEAL_BLOCK_NUM) {
       return TestResults.TOO_FEW_BLOCKS_FAIL;
     }
     return TestResults.LEVEL_INCOMPLETE_FAIL;
   }
-  if (this.studioApp_.IDEAL_BLOCK_NUM &&
-      numEnabledBlocks > this.studioApp_.IDEAL_BLOCK_NUM) {
+  if (studioAppSingleton.IDEAL_BLOCK_NUM &&
+      numEnabledBlocks > studioAppSingleton.IDEAL_BLOCK_NUM) {
     return TestResults.TOO_MANY_BLOCKS_FAIL;
   } else {
     return TestResults.ALL_PASS;
   }
 };
 
-/**
- *
- */
-FeedbackUtils.prototype.createModalDialogWithIcon = function(options) {
+var Keycodes = {
+  ENTER: 13,
+  SPACE: 32
+};
+
+exports.createModalDialogWithIcon = function(options) {
   var imageDiv = document.createElement('img');
   imageDiv.className = "modal-image";
   imageDiv.src = options.icon;
@@ -3412,7 +3389,7 @@ FeedbackUtils.prototype.createModalDialogWithIcon = function(options) {
 
   var btn = options.contentDiv.querySelector(options.defaultBtnSelector);
   var keydownHandler = function(e) {
-    if (e.keyCode == KeyCodes.ENTER || e.keyCode == KeyCodes.SPACE) {
+    if (e.keyCode == Keycodes.ENTER || e.keyCode == Keycodes.SPACE) {
       // Simulate a 'click':
       var event = new MouseEvent('click', {
           'view': window,
@@ -3437,26 +3414,25 @@ FeedbackUtils.prototype.createModalDialogWithIcon = function(options) {
 /**
  * Check for '???' instead of a value in block fields.
  */
-FeedbackUtils.prototype.hasQuestionMarksInNumberField_ = function () {
+function hasQuestionMarksInNumberField() {
   return Blockly.mainBlockSpace.getAllBlocks().some(function(block) {
     return block.getTitles().some(function(title) {
       return title.value_ === '???';
     });
   });
-};
+}
 
 /**
  * Ensure that all procedure definitions actually use the parameters they define
  * inside the procedure.
  */
-FeedbackUtils.prototype.hasUnusedParam_ = function () {
-  var self = this;
+function hasUnusedParam() {
   return Blockly.mainBlockSpace.getAllBlocks().some(function(userBlock) {
     var params = userBlock.parameterNames_;
     // Only search procedure definitions
     return params && params.some(function(paramName) {
       // Unused param if there's no parameters_get descendant with the same name
-      return !self.hasMatchingDescendant_(userBlock, function(block) {
+      return !hasMatchingDescendant(userBlock, function(block) {
         return (block.type === 'parameters_get' ||
             block.type === 'functional_parameters_get' ||
             block.type === 'variables_get') &&
@@ -3464,12 +3440,12 @@ FeedbackUtils.prototype.hasUnusedParam_ = function () {
       });
     });
   });
-};
+}
 
 /**
  * Ensure that all procedure calls have each parameter input connected.
  */
-FeedbackUtils.prototype.hasParamInputUnattached_ = function () {
+function hasParamInputUnattached() {
   return Blockly.mainBlockSpace.getAllBlocks().some(function(userBlock) {
     // Only check procedure_call* blocks
     if (!/^procedures_call/.test(userBlock.type)) {
@@ -3482,12 +3458,12 @@ FeedbackUtils.prototype.hasParamInputUnattached_ = function () {
       return !argInput.connection.targetConnection;
     });
   });
-};
+}
 
 /**
  * Ensure that all user-declared procedures have associated call blocks.
  */
-FeedbackUtils.prototype.hasUnusedFunction_ = function () {
+function hasUnusedFunction() {
   var userDefs = [];
   var callBlocks = {};
   Blockly.mainBlockSpace.getAllBlocks().forEach(function (block) {
@@ -3500,19 +3476,18 @@ FeedbackUtils.prototype.hasUnusedFunction_ = function () {
   });
   // Unused function if some user def doesn't have a matching call
   return userDefs.some(function(name) { return !callBlocks[name]; });
-};
+}
 
 /**
  * Ensure there are no incomplete blocks inside any function definitions.
  */
-FeedbackUtils.prototype.hasIncompleteBlockInFunction_ = function () {
-  var self = this;
+function hasIncompleteBlockInFunction() {
   return Blockly.mainBlockSpace.getAllBlocks().some(function(userBlock) {
     // Only search procedure definitions
     if (!userBlock.parameterNames_) {
       return false;
     }
-    return self.hasMatchingDescendant_(userBlock, function(block) {
+    return hasMatchingDescendant(userBlock, function(block) {
       // Incomplete block if any input connection target is null
       return block.inputList.some(function(input) {
         return input.type === Blockly.INPUT_VALUE &&
@@ -3520,30 +3495,30 @@ FeedbackUtils.prototype.hasIncompleteBlockInFunction_ = function () {
       });
     });
   });
-};
+}
 
 /**
  * Returns true if any descendant (inclusive) of the given node matches the
  * given filter.
  */
-FeedbackUtils.prototype.hasMatchingDescendant_ = function (node, filter) {
+function hasMatchingDescendant(node, filter) {
   if (filter(node)) {
     return true;
   }
-  var self = this;
   return node.childBlocks_.some(function (child) {
-    return self.hasMatchingDescendant_(child, filter);
+    return hasMatchingDescendant(child, filter);
   });
-};
+}
 
-},{"../locale/ms_my/common":40,"./codegen":6,"./constants":7,"./dom":8,"./feedbackBlocks":10,"./templates/buttons.html":17,"./templates/code.html":18,"./templates/shareFailure.html":24,"./templates/sharing.html":25,"./templates/showCode.html":26,"./templates/trophy.html":27,"./utils":28,"./xml":39}],10:[function(require,module,exports){
+
+},{"../locale/ms_my/common":41,"./codegen":7,"./constants":8,"./dom":9,"./feedbackBlocks":11,"./templates/buttons.html":18,"./templates/code.html":19,"./templates/shareFailure.html":25,"./templates/sharing.html":26,"./templates/showCode.html":27,"./templates/trophy.html":28,"./utils":29,"./xml":40}],11:[function(require,module,exports){
 var constants = require('./constants');
 var readonly = require('./templates/readonly.html');
 
 TestResults = constants.TestResults;
 
-// TODO (br-pair): can we not pass in the studioApp
-var FeedbackBlocks = function(options, missingRequiredBlocks, studioApp) {
+// TODO (br-pair): can we not pass in the studioAppSingleton
+var FeedbackBlocks = function(options, missingRequiredBlocks, studioAppSingleton) {
   // Check whether blocks are embedded in the hint returned from dashboard.
   // See below comment for format.
   var embeddedBlocks = options.response && options.response.hint &&
@@ -3584,13 +3559,13 @@ var FeedbackBlocks = function(options, missingRequiredBlocks, studioApp) {
   this.div = document.createElement('div');
   this.html = readonly({
     app: options.app,
-    assetUrl: studioApp.assetUrl,
+    assetUrl: studioAppSingleton.assetUrl,
     options: {
       readonly: true,
-      locale: studioApp.LOCALE,
-      localeDirection: studioApp.localeDirection(),
-      baseUrl: studioApp.BASE_URL,
-      cacheBust: studioApp.CACHE_BUST,
+      locale: studioAppSingleton.LOCALE,
+      localeDirection: studioAppSingleton.localeDirection(),
+      baseUrl: studioAppSingleton.BASE_URL,
+      cacheBust: studioAppSingleton.CACHE_BUST,
       skinId: options.skin,
       level: options.level,
       blocks: this.generateXMLForBlocks_(blocksToDisplay)
@@ -3665,7 +3640,7 @@ FeedbackBlocks.prototype.generateXMLForBlocks_ = function(blocks) {
   return blockXMLStrings.join('');
 };
 
-},{"./constants":7,"./templates/readonly.html":23}],11:[function(require,module,exports){
+},{"./constants":8,"./templates/readonly.html":24}],12:[function(require,module,exports){
 /*! Hammer.JS - v1.1.3 - 2014-05-22
  * http://eightmedia.github.io/hammer.js
  *
@@ -5829,7 +5804,7 @@ if(typeof define == 'function' && define.amd) {
 }
 
 })(window);
-},{}],12:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 (function (global){
 /**
  * @license
@@ -8782,7 +8757,7 @@ if(typeof define == 'function' && define.amd) {
 }.call(this));
 
 }).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],13:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 var xml = require('./xml');
 var blockUtils = require('./block_utils');
 var utils = require('./utils');
@@ -9060,7 +9035,7 @@ var titlesMatch = function(titleA, titleB) {
     titleB.getValue() === titleA.getValue();
 };
 
-},{"../locale/ms_my/common":40,"./block_utils":4,"./utils":28,"./xml":39}],14:[function(require,module,exports){
+},{"../locale/ms_my/common":41,"./block_utils":5,"./utils":29,"./xml":40}],15:[function(require,module,exports){
 // avatar: A 1029x51 set of 21 avatar images.
 
 exports.load = function(assetUrl, id) {
@@ -9134,7 +9109,7 @@ exports.load = function(assetUrl, id) {
   return skin;
 };
 
-},{}],15:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 /**
  * Blockly Apps: SVG Slider
  *
@@ -9399,7 +9374,7 @@ Slider.bindEvent_ = function(element, name, func) {
 
 module.exports = Slider;
 
-},{"./dom":8}],16:[function(require,module,exports){
+},{"./dom":9}],17:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -9420,7 +9395,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"ejs":42}],17:[function(require,module,exports){
+},{"ejs":43}],18:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -9441,7 +9416,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"../../locale/ms_my/common":40,"ejs":42}],18:[function(require,module,exports){
+},{"../../locale/ms_my/common":41,"ejs":43}],19:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -9462,7 +9437,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"ejs":42}],19:[function(require,module,exports){
+},{"ejs":43}],20:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -9483,7 +9458,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"../../locale/ms_my/common":40,"ejs":42}],20:[function(require,module,exports){
+},{"../../locale/ms_my/common":41,"ejs":43}],21:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -9506,7 +9481,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"../../locale/ms_my/common":40,"ejs":42}],21:[function(require,module,exports){
+},{"../../locale/ms_my/common":41,"ejs":43}],22:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -9527,7 +9502,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"../../locale/ms_my/common":40,"ejs":42}],22:[function(require,module,exports){
+},{"../../locale/ms_my/common":41,"ejs":43}],23:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -9552,7 +9527,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"../../locale/ms_my/common":40,"ejs":42}],23:[function(require,module,exports){
+},{"../../locale/ms_my/common":41,"ejs":43}],24:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -9574,7 +9549,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"ejs":42}],24:[function(require,module,exports){
+},{"ejs":43}],25:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -9595,7 +9570,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"ejs":42}],25:[function(require,module,exports){
+},{"ejs":43}],26:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -9616,7 +9591,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"../../locale/ms_my/common":40,"ejs":42}],26:[function(require,module,exports){
+},{"../../locale/ms_my/common":41,"ejs":43}],27:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -9637,7 +9612,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"../../locale/ms_my/common":40,"ejs":42}],27:[function(require,module,exports){
+},{"../../locale/ms_my/common":41,"ejs":43}],28:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -9658,7 +9633,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"ejs":42}],28:[function(require,module,exports){
+},{"ejs":43}],29:[function(require,module,exports){
 var xml = require('./xml');
 var savedAmd;
 
@@ -10020,7 +9995,7 @@ exports.generateDropletModeOptions = function (codeFunctions) {
   return modeOptions;
 };
 
-},{"./hammer":11,"./lodash":12,"./xml":39}],29:[function(require,module,exports){
+},{"./hammer":12,"./lodash":13,"./xml":40}],30:[function(require,module,exports){
 
 exports.randomFromArray = function (values) {
   var key = Math.floor(Math.random() * values.length);
@@ -10322,7 +10297,7 @@ exports.readRecords = function (blockId, searchParams, callback) {
                            'callback': callback });
 };
 
-},{}],30:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 /**
  * CodeOrgApp: Webapp
  *
@@ -10395,7 +10370,7 @@ function installCreateHtmlBlock(blockly, generator, blockInstallOptions) {
   };
 }
 
-},{"../../locale/ms_my/common":40,"../../locale/ms_my/webapp":41,"../codegen":6,"../utils":28}],31:[function(require,module,exports){
+},{"../../locale/ms_my/common":41,"../../locale/ms_my/webapp":42,"../codegen":7,"../utils":29}],32:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -10416,7 +10391,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"../../locale/ms_my/common":40,"ejs":42}],32:[function(require,module,exports){
+},{"../../locale/ms_my/common":41,"ejs":43}],33:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -10437,7 +10412,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"../../locale/ms_my/common":40,"../../locale/ms_my/webapp":41,"ejs":42}],33:[function(require,module,exports){
+},{"../../locale/ms_my/common":41,"../../locale/ms_my/webapp":42,"ejs":43}],34:[function(require,module,exports){
 /**
  * CodeOrgApp: Webapp
  *
@@ -10620,7 +10595,7 @@ FormStorage.getAppSecret = function() {
 };
 
 
-},{}],34:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 /*jshint multistr: true */
 
 var msg = require('../../locale/ms_my/webapp');
@@ -10794,7 +10769,7 @@ levels.full_sandbox =  {
    '<block type="when_run" deletable="false" x="20" y="20"></block>'
 };
 
-},{"../../locale/ms_my/webapp":41,"../block_utils":4,"../utils":28}],35:[function(require,module,exports){
+},{"../../locale/ms_my/webapp":42,"../block_utils":5,"../utils":29}],36:[function(require,module,exports){
 (function (global){
 var appMain = require('../appMain');
 window.Webapp = require('./webapp');
@@ -10812,7 +10787,7 @@ window.webappMain = function(options) {
 };
 
 }).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../appMain":3,"./blocks":30,"./levels":34,"./skins":36,"./webapp":38}],36:[function(require,module,exports){
+},{"../appMain":3,"./blocks":31,"./levels":35,"./skins":37,"./webapp":39}],37:[function(require,module,exports){
 /**
  * Load Skin for Webapp.
  */
@@ -10831,7 +10806,7 @@ exports.load = function(assetUrl, id) {
   return skin;
 };
 
-},{"../skins":14}],37:[function(require,module,exports){
+},{"../skins":15}],38:[function(require,module,exports){
 module.exports= (function() {
   var t = function anonymous(locals, filters, escape, rethrow) {
 escape = escape || function (html){
@@ -10852,7 +10827,7 @@ return buf.join('');
     return t(locals, require("ejs").filters);
   }
 }());
-},{"ejs":42}],38:[function(require,module,exports){
+},{"ejs":43}],39:[function(require,module,exports){
 /**
  * CodeOrgApp: Webapp
  *
@@ -10862,7 +10837,7 @@ return buf.join('');
 
 'use strict';
 
-var studioApp = require('../StudioApp').singleton;
+var StudioApp = require('../base');
 var commonMsg = require('../../locale/ms_my/common');
 var webappMsg = require('../../locale/ms_my/webapp');
 var skins = require('../skins');
@@ -10875,13 +10850,8 @@ var parseXmlElement = require('../xml').parseElement;
 var utils = require('../utils');
 var Slider = require('../slider');
 var FormStorage = require('./formStorage');
-var constants = require('../constants');
-var KeyCodes = constants.KeyCodes;
 var _ = utils.getLodash();
 var Hammer = utils.getHammer();
-
-var ResultType = studioApp.ResultType;
-var TestResults = studioApp.TestResults;
 
 /**
  * Create a namespace for the application.
@@ -10892,10 +10862,10 @@ var level;
 var skin;
 
 //TODO: Make configurable.
-studioApp.setCheckForEmptyBlocks(true);
+StudioApp.CHECK_FOR_EMPTY_BLOCKS = true;
 
 //The number of blocks to show as feedback.
-studioApp.NUM_REQUIRED_BLOCKS_TO_FLAG = 1;
+StudioApp.NUM_REQUIRED_BLOCKS_TO_FLAG = 1;
 
 var MAX_INTERPRETER_STEPS_PER_TICK = 10000;
 
@@ -10966,8 +10936,12 @@ function outputWebappConsole(output) {
   debugOutput.scrollTop = debugOutput.scrollHeight;
 }
 
+var Keycodes = {
+  ENTER: 13,
+};
+
 function onDebugInputKeyDown(e) {
-  if (e.keyCode == KeyCodes.ENTER) {
+  if (e.keyCode == Keycodes.ENTER) {
     var input = e.target.textContent;
     e.target.textContent = '';
     outputWebappConsole('> ' + input);
@@ -10999,12 +10973,12 @@ function onDebugInputKeyDown(e) {
 }
 
 function selectEditorRowCol(row, col) {
-  if (studioApp.editor.currentlyUsingBlocks) {
+  if (StudioApp.editor.currentlyUsingBlocks) {
     var style = {color: '#FFFF22'};
-    studioApp.editor.clearLineMarks();
-    studioApp.editor.markLine(row, style);
+    StudioApp.editor.clearLineMarks();
+    StudioApp.editor.markLine(row, style);
   } else {
-    var selection = studioApp.editor.aceEditor.getSelection();
+    var selection = StudioApp.editor.aceEditor.getSelection();
     var range = selection.getRange();
 
     range.start.row = row;
@@ -11075,13 +11049,13 @@ Webapp.onTick = function() {
     var unwindingAfterStep = false;
     var inUserCode;
     var userCodeRow;
-    var session = studioApp.editor.aceEditor.getSession();
+    var session = StudioApp.editor.aceEditor.getSession();
     // NOTE: when running with no source visible or at max speed with blocks, we
     // call a simple function to just get the line number, otherwise we call a
     // function that also selects the code:
     var selectCodeFunc =
-      (studioApp.hideSource ||
-       (atMaxSpeed && !Webapp.paused && studioApp.editor.currentlyUsingBlocks)) ?
+      (StudioApp.hideSource ||
+       (atMaxSpeed && !Webapp.paused && StudioApp.editor.currentlyUsingBlocks)) ?
             codegen.getUserCodeLine :
             codegen.selectCurrentCode;
 
@@ -11104,7 +11078,7 @@ Webapp.onTick = function() {
                                    Webapp.cumulativeLength,
                                    Webapp.userCodeStartOffset,
                                    Webapp.userCodeLength,
-                                   studioApp.editor);
+                                   StudioApp.editor);
       inUserCode = (-1 !== userCodeRow);
       // Check to see if we've arrived at a new breakpoint:
       //  (1) should be in user code
@@ -11190,7 +11164,7 @@ Webapp.onTick = function() {
                                            Webapp.cumulativeLength,
                                            Webapp.userCodeStartOffset,
                                            Webapp.userCodeLength,
-                                           studioApp.editor);
+                                           StudioApp.editor);
               inUserCode = (-1 !== userCodeRow);
               if (!inUserCode) {
                 // not in user code, so keep unwinding after all...
@@ -11236,11 +11210,11 @@ Webapp.onTick = function() {
                                 Webapp.cumulativeLength,
                                 Webapp.userCodeStartOffset,
                                 Webapp.userCodeLength,
-                                studioApp.editor);
+                                StudioApp.editor);
     }
   } else {
     if (Webapp.tickCount === 1) {
-      try { Webapp.whenRunFunc(studioApp, api, Webapp.Globals); } catch (e) { }
+      try { Webapp.whenRunFunc(StudioApp, api, Webapp.Globals); } catch (e) { }
     }
   }
 
@@ -11262,7 +11236,7 @@ Webapp.initReadonly = function(config) {
 
   // Webapp.initMinimal();
 
-  studioApp.initReadonly(config);
+  StudioApp.initReadonly(config);
 };
 
 /**
@@ -11275,33 +11249,33 @@ Webapp.init = function(config) {
 
   loadLevel();
 
-  if (studioApp.hideSource) {
+  if (StudioApp.hideSource) {
     // always run at max speed if source is hidden
     config.level.sliderSpeed = 1.0;
   }
 
   Webapp.canvasScale = (window.devicePixelRatio > 1) ? window.devicePixelRatio : 1;
 
-  var showSlider = !config.hideSource && config.level.editCode;
-  var showDebugButtons = !config.hideSource && config.level.editCode;
-  var showDebugConsole = !config.hideSource && config.level.editCode;
+  var showSlider = !config.hide_source && config.level.editCode;
+  var showDebugButtons = !config.hide_source && config.level.editCode;
+  var showDebugConsole = !config.hide_source && config.level.editCode;
   var finishButtonFirstLine = _.isEmpty(level.softButtons) && !showSlider;
   var firstControlsRow = require('./controls.html')({
-    assetUrl: studioApp.assetUrl,
+    assetUrl: StudioApp.assetUrl,
     showSlider: showSlider,
     finishButton: finishButtonFirstLine
   });
   var extraControlsRow = require('./extraControlRows.html')({
-    assetUrl: studioApp.assetUrl,
+    assetUrl: StudioApp.assetUrl,
     finishButton: !finishButtonFirstLine,
     debugButtons: showDebugButtons,
     debugConsole: showDebugConsole
   });
 
   config.html = page({
-    assetUrl: studioApp.assetUrl,
+    assetUrl: StudioApp.assetUrl,
     data: {
-      localeDirection: studioApp.localeDirection(),
+      localeDirection: StudioApp.localeDirection(),
       visualization: require('./visualization.html')(),
       controls: firstControlsRow,
       extraControlRows: extraControlsRow,
@@ -11313,13 +11287,13 @@ Webapp.init = function(config) {
   });
 
   config.loadAudio = function() {
-    studioApp.loadAudio(skin.winSound, 'win');
-    studioApp.loadAudio(skin.startSound, 'start');
-    studioApp.loadAudio(skin.failureSound, 'failure');
+    StudioApp.loadAudio(skin.winSound, 'win');
+    StudioApp.loadAudio(skin.startSound, 'start');
+    StudioApp.loadAudio(skin.failureSound, 'failure');
   };
 
   config.afterInject = function() {
-    if (studioApp.usingBlockly) {
+    if (StudioApp.usingBlockly) {
       /**
        * The richness of block colours, regardless of the hue.
        * MOOC blocks should be brighter (target audience is younger).
@@ -11332,7 +11306,7 @@ Webapp.init = function(config) {
     } else {
       // Set up an event handler to create breakpoints when clicking in the
       // ace gutter:
-      var aceEditor = studioApp.editor.aceEditor;
+      var aceEditor = StudioApp.editor.aceEditor;
       if (aceEditor) {
         aceEditor.on("guttermousedown", function(e) {
           var target = e.domEvent.target;
@@ -11365,7 +11339,7 @@ Webapp.init = function(config) {
 
   // Webapp.initMinimal();
 
-  studioApp.init(config);
+  StudioApp.init(config);
 
   if (level.editCode) {
     // Initialize the slider.
@@ -11404,9 +11378,9 @@ Webapp.init = function(config) {
     }
   }
 
-  if (studioApp.share) {
+  if (StudioApp.share) {
     // automatically run in share mode:
-    window.setTimeout(studioApp.runButtonClick, 0);
+    window.setTimeout(StudioApp.runButtonClick, 0);
   }
 };
 
@@ -11440,7 +11414,7 @@ Webapp.clearEventHandlersKillTickLoop = function() {
  * Reset the app to the start position and kill any pending animation tasks.
  * @param {boolean} first True if an opening animation is to be played.
  */
-studioApp.reset = function(first) {
+StudioApp.reset = function(first) {
   var i;
   Webapp.clearEventHandlersKillTickLoop();
 
@@ -11516,22 +11490,22 @@ studioApp.reset = function(first) {
  * Click the run button.  Start the program.
  */
 // XXX This is the only method used by the templates!
-studioApp.runButtonClick = function() {
+StudioApp.runButtonClick = function() {
   var runButton = document.getElementById('runButton');
   var resetButton = document.getElementById('resetButton');
   // Ensure that Reset button is at least as wide as Run button.
   if (!resetButton.style.minWidth) {
     resetButton.style.minWidth = runButton.offsetWidth + 'px';
   }
-  studioApp.toggleRunReset('reset');
-  if (studioApp.usingBlockly) {
+  StudioApp.toggleRunReset('reset');
+  if (StudioApp.usingBlockly) {
     Blockly.mainBlockSpace.traceOn(true);
   }
-  studioApp.reset(false);
-  studioApp.attempts++;
+  StudioApp.reset(false);
+  StudioApp.attempts++;
   Webapp.execute();
 
-  if (level.freePlay && !studioApp.hideSource) {
+  if (level.freePlay && !StudioApp.hideSource) {
     var shareCell = document.getElementById('share-cell');
     shareCell.className = 'share-cell-enabled';
   }
@@ -11539,11 +11513,11 @@ studioApp.runButtonClick = function() {
 
 /**
  * App specific displayFeedback function that calls into
- * studioApp.displayFeedback when appropriate
+ * StudioApp.displayFeedback when appropriate
  */
 var displayFeedback = function() {
   if (!Webapp.waitingForReport) {
-    studioApp.displayFeedback({
+    StudioApp.displayFeedback({
       app: 'webapp', //XXX
       skin: skin.id,
       feedbackType: Webapp.testResults,
@@ -11583,7 +11557,7 @@ var defineProcedures = function (blockType) {
   // TODO: handle editCode JS interpreter
   try { codegen.evalWith(code, {
                          codeFunctions: level.codeFunctions,
-                         studioApp: studioApp,
+                         StudioApp: StudioApp,
                          Studio: api,
                          Globals: Webapp.Globals } ); } catch (e) { }
 };
@@ -11655,15 +11629,15 @@ var mathFunctions = [
  * Execute the app
  */
 Webapp.execute = function() {
-  Webapp.result = ResultType.UNSET;
-  Webapp.testResults = TestResults.NO_TESTS_RUN;
+  Webapp.result = StudioApp.ResultType.UNSET;
+  Webapp.testResults = StudioApp.TestResults.NO_TESTS_RUN;
   Webapp.waitingForReport = false;
   Webapp.response = null;
   var i;
 
-  studioApp.playAudio('start');
+  StudioApp.playAudio('start');
 
-  studioApp.reset(false);
+  StudioApp.reset(false);
 
   // Set event handlers and start the onTick timer
 
@@ -11673,13 +11647,13 @@ Webapp.execute = function() {
     codeWhenRun += utils.generateCodeAliases(mathFunctions, 'Math');
     Webapp.userCodeStartOffset = codeWhenRun.length;
     Webapp.userCodeLineOffset = codeWhenRun.split("\n").length - 1;
-    codeWhenRun += studioApp.editor.getValue();
+    codeWhenRun += StudioApp.editor.getValue();
     Webapp.userCodeLength = codeWhenRun.length - Webapp.userCodeStartOffset;
     // Append our mini-runtime after the user's code. This will spin and process
     // callback functions:
     codeWhenRun += '\nwhile (true) { var obj = getCallback(); ' +
       'if (obj) { obj.fn.apply(null, obj.arguments ? obj.arguments : null); }}';
-    var session = studioApp.editor.aceEditor.getSession();
+    var session = StudioApp.editor.aceEditor.getSession();
     Webapp.cumulativeLength = codegen.aceCalculateCumulativeLength(session);
   } else {
     // Define any top-level procedures the user may have created
@@ -11701,7 +11675,7 @@ Webapp.execute = function() {
       // Use JS interpreter on editCode levels
       var initFunc = function(interpreter, scope) {
         codegen.initJSInterpreter(interpreter, scope, {
-                                          StudioApp: studioApp,
+                                          StudioApp: StudioApp,
                                           Webapp: api,
                                           console: consoleApi,
                                           JSON: JSONApi,
@@ -11727,7 +11701,7 @@ Webapp.execute = function() {
       }
     } else {
       Webapp.whenRunFunc = codegen.functionFromCode(codeWhenRun, {
-                                          StudioApp: studioApp,
+                                          StudioApp: StudioApp,
                                           Webapp: api,
                                           Globals: Webapp.Globals } );
     }
@@ -11788,7 +11762,7 @@ Webapp.onStepOverButton = function() {
 
 Webapp.onStepInButton = function() {
   if (!Webapp.running) {
-    studioApp.runButtonClick();
+    StudioApp.runButtonClick();
     Webapp.onPauseButton();
   }
   Webapp.paused = true;
@@ -11815,9 +11789,9 @@ Webapp.onViewData = function() {
 
 Webapp.onPuzzleComplete = function() {
   if (Webapp.executionError) {
-    Webapp.result = ResultType.ERROR;
+    Webapp.result = StudioApp.ResultType.ERROR;
   } else if (level.freePlay) {
-    Webapp.result = ResultType.SUCCESS;
+    Webapp.result = StudioApp.ResultType.SUCCESS;
   }
 
   // Stop everything on screen
@@ -11825,16 +11799,16 @@ Webapp.onPuzzleComplete = function() {
 
   // If the current level is a free play, always return the free play result
   if (level.freePlay) {
-    Webapp.testResults = TestResults.FREE_PLAY;
+    Webapp.testResults = StudioApp.TestResults.FREE_PLAY;
   } else {
-    var levelComplete = (Webapp.result === ResultType.SUCCESS);
-    Webapp.testResults = studioApp.getTestResults(levelComplete);
+    var levelComplete = (Webapp.result === StudioApp.ResultType.SUCCESS);
+    Webapp.testResults = StudioApp.getTestResults(levelComplete);
   }
 
-  if (Webapp.testResults >= TestResults.FREE_PLAY) {
-    studioApp.playAudio('win');
+  if (Webapp.testResults >= StudioApp.TestResults.FREE_PLAY) {
+    StudioApp.playAudio('win');
   } else {
-    studioApp.playAudio('failure');
+    StudioApp.playAudio('failure');
   }
 
   var program;
@@ -11846,7 +11820,7 @@ Webapp.onPuzzleComplete = function() {
     // do an acorn.parse and then use escodegen to generate back a "clean" version
     // or minify (uglifyjs) and that or js-beautify to restore a "clean" version
 
-    program = studioApp.editor.getValue();
+    program = StudioApp.editor.getValue();
   } else {
     var xml = Blockly.Xml.blockSpaceToDom(Blockly.mainBlockSpace);
     program = Blockly.Xml.domToText(xml);
@@ -11855,10 +11829,10 @@ Webapp.onPuzzleComplete = function() {
   Webapp.waitingForReport = true;
 
   var sendReport = function() {
-    studioApp.report({
+    StudioApp.report({
       app: 'webapp',
       level: level.id,
-      result: Webapp.result === ResultType.SUCCESS,
+      result: Webapp.result === StudioApp.ResultType.SUCCESS,
       testResult: Webapp.testResults,
       program: encodeURIComponent(program),
       image: Webapp.encodedFeedbackImage,
@@ -11904,7 +11878,7 @@ Webapp.callCmd = function (cmd) {
     /*
     case 'wait':
       if (!cmd.opts.started) {
-        studioApp.highlight(cmd.id);
+        StudioApp.highlight(cmd.id);
       }
       return Studio.wait(cmd.opts);
     */
@@ -11947,7 +11921,7 @@ Webapp.callCmd = function (cmd) {
     case 'clearTimeout':
     case 'createRecord':
     case 'readRecords':
-      studioApp.highlight(cmd.id);
+      StudioApp.highlight(cmd.id);
       retVal = Webapp[cmd.name](cmd.opts);
       break;
   }
@@ -12561,25 +12535,25 @@ Webapp.timedOut = function() {
 var checkFinished = function () {
   // if we have a succcess condition and have accomplished it, we're done and successful
   if (level.goal && level.goal.successCondition && level.goal.successCondition()) {
-    Webapp.result = ResultType.SUCCESS;
+    Webapp.result = StudioApp.ResultType.SUCCESS;
     return true;
   }
 
   // if we have a failure condition, and it's been reached, we're done and failed
   if (level.goal && level.goal.failureCondition && level.goal.failureCondition()) {
-    Webapp.result = ResultType.FAILURE;
+    Webapp.result = StudioApp.ResultType.FAILURE;
     return true;
   }
 
   /*
   if (Webapp.allGoalsVisited()) {
-    Webapp.result = ResultType.SUCCESS;
+    Webapp.result = StudioApp.ResultType.SUCCESS;
     return true;
   }
   */
 
   if (Webapp.timedOut()) {
-    Webapp.result = ResultType.FAILURE;
+    Webapp.result = StudioApp.ResultType.FAILURE;
     return true;
   }
 
@@ -12794,7 +12768,7 @@ var getPegasusHost = function() {
         return Array(multiplier + 1).join(input)
     }
 
-},{"../../locale/ms_my/common":40,"../../locale/ms_my/webapp":41,"../StudioApp":2,"../codegen":6,"../constants":7,"../dom":8,"../skins":14,"../slider":15,"../templates/page.html":22,"../utils":28,"../xml":39,"./api":29,"./blocks":30,"./controls.html":31,"./extraControlRows.html":32,"./formStorage":33,"./visualization.html":37}],39:[function(require,module,exports){
+},{"../../locale/ms_my/common":41,"../../locale/ms_my/webapp":42,"../base":4,"../codegen":7,"../dom":9,"../skins":15,"../slider":16,"../templates/page.html":23,"../utils":29,"../xml":40,"./api":30,"./blocks":31,"./controls.html":32,"./extraControlRows.html":33,"./formStorage":34,"./visualization.html":38}],40:[function(require,module,exports){
 // Serializes an XML DOM node to a string.
 exports.serialize = function(node) {
   var serializer = new XMLSerializer();
@@ -12822,7 +12796,7 @@ exports.parseElement = function(text) {
   return element;
 };
 
-},{}],40:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 var MessageFormat = require("messageformat");MessageFormat.locale.ms=function(n){return "other"}
 exports.and = function(d){return "dan"};
 
@@ -13007,7 +12981,7 @@ exports.toggleBlocksErrorMsg = function(d){return "You need to correct an error 
 exports.defaultTwitterText = function(d){return "Check out what I made"};
 
 
-},{"messageformat":53}],41:[function(require,module,exports){
+},{"messageformat":54}],42:[function(require,module,exports){
 var MessageFormat = require("messageformat");MessageFormat.locale.ms=function(n){return "other"}
 exports.catActions = function(d){return "Tindakan"};
 
@@ -13068,7 +13042,7 @@ exports.viewData = function(d){return "View Data"};
 exports.yes = function(d){return "Ya"};
 
 
-},{"messageformat":53}],42:[function(require,module,exports){
+},{"messageformat":54}],43:[function(require,module,exports){
 
 /*!
  * EJS
@@ -13427,7 +13401,7 @@ if (require.extensions) {
   });
 }
 
-},{"./filters":43,"./utils":44,"fs":45,"path":46}],43:[function(require,module,exports){
+},{"./filters":44,"./utils":45,"fs":46,"path":47}],44:[function(require,module,exports){
 /*!
  * EJS - Filters
  * Copyright(c) 2010 TJ Holowaychuk <tj@vision-media.ca>
@@ -13630,7 +13604,7 @@ exports.json = function(obj){
   return JSON.stringify(obj);
 };
 
-},{}],44:[function(require,module,exports){
+},{}],45:[function(require,module,exports){
 
 /*!
  * EJS
@@ -13656,9 +13630,9 @@ exports.escape = function(html){
 };
  
 
-},{}],45:[function(require,module,exports){
-
 },{}],46:[function(require,module,exports){
+
+},{}],47:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -13886,7 +13860,7 @@ var substr = 'ab'.substr(-1) === 'b'
 ;
 
 }).call(this,require("JkpR2F"))
-},{"JkpR2F":47}],47:[function(require,module,exports){
+},{"JkpR2F":48}],48:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -13951,7 +13925,7 @@ process.chdir = function (dir) {
     throw new Error('process.chdir is not supported');
 };
 
-},{}],48:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 (function (global){
 /*! http://mths.be/punycode v1.2.4 by @mathias */
 ;(function(root) {
@@ -14462,7 +14436,7 @@ process.chdir = function (dir) {
 }(this));
 
 }).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],49:[function(require,module,exports){
+},{}],50:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -14548,7 +14522,7 @@ var isArray = Array.isArray || function (xs) {
   return Object.prototype.toString.call(xs) === '[object Array]';
 };
 
-},{}],50:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -14635,13 +14609,13 @@ var objectKeys = Object.keys || function (obj) {
   return res;
 };
 
-},{}],51:[function(require,module,exports){
+},{}],52:[function(require,module,exports){
 'use strict';
 
 exports.decode = exports.parse = require('./decode');
 exports.encode = exports.stringify = require('./encode');
 
-},{"./decode":49,"./encode":50}],52:[function(require,module,exports){
+},{"./decode":50,"./encode":51}],53:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -15350,7 +15324,7 @@ function isNullOrUndefined(arg) {
   return  arg == null;
 }
 
-},{"punycode":48,"querystring":51}],53:[function(require,module,exports){
+},{"punycode":49,"querystring":52}],54:[function(require,module,exports){
 /**
  * messageformat.js
  *
@@ -16933,4 +16907,4 @@ function isNullOrUndefined(arg) {
 
 })( this );
 
-},{}]},{},[35])
+},{}]},{},[36])
