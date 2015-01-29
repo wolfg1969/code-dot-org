@@ -20,6 +20,20 @@ class ScriptLevelsController < ApplicationController
     end
   end
 
+  def embed_blocks
+    authorize! :read, :level
+    @level = Level.find(params[:level_id])
+    @block_type = params[:block_type]
+    @app = @level.game.app
+    @options = {
+        readonly: true,
+        locale: js_locale,
+        baseUrl: "#{ActionController::Base.asset_host}/blockly/",
+        blocks: @level.properties[@block_type]
+    }
+    render 'levels/embed_blocks', layout: false
+  end
+
   def show
     authorize! :show, ScriptLevel
     @script = Script.get_from_cache(params[:script_id])
