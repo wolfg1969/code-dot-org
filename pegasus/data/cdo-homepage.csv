@@ -1,0 +1,5 @@
+id_s!,type_s,text1_s,url_s,image_t,active_s
+hoc,widehero,Try the Hour of Code,http://code.org/learn,/images/logo_skype_classroom.jpg,show
+elementary,slot,,,/shared/images/courses/logo_tall_elementary.jpg,show
+frozen,slot,,,/shared/images/courses/logo_tall_frozen.jpg,show
+teacher,slot,,,/shared/images/courses/logo_tall_teacher.jpg,hide
