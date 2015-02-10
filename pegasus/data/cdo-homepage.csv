@@ -1,5 +1,9 @@
-id_s!,type_s,text1_s,url_s,image_t,active_s
-hoc,widehero,Try the Hour of Code,http://code.org/learn,/images/logo_skype_classroom.jpg,show
-elementary,slot,,,/shared/images/courses/logo_tall_elementary.jpg,show
-frozen,slot,,,/shared/images/courses/logo_tall_frozen.jpg,show
-teacher,slot,,,/shared/images/courses/logo_tall_teacher.jpg,hide
+id_s!,type_s,text1_s,url_s,watermark_t,image_t,active_s
+hoc,widehero,The Hour of Code,http://code.org/learn,,/images/logo_skype_classroom.jpg,show
+elementary,slot,The Hour of Code,,,/shared/images/courses/logo_tall_elementary.jpg,show
+frozen,slot,Frozen with Anna and Elsa,,codestudio,/shared/images/courses/logo_tall_frozen.jpg,show
+teacher,slot,Teacher Dashboard,,codestudio,/shared/images/courses/logo_tall_teacher.jpg,show
+studio,slot,All of our tutorials,,codestudio,/shared/blah.jpg,nah
+course4,slot,Course 4,,codestudio,/shared/images/courses/logo_tall_course4.jpg,nah
+shop,slot,Shop,,,/shared/images/courses/logo_tall_shop.jpg,show
+petition,petition,,,,,show

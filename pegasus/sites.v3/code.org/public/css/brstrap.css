@@ -62,6 +62,12 @@
   .i-agree-button { width: 9%; }
 }
 
+/* 1201px and up: extra wide for scenes that want it */
+/*
+@media screen and (min-width: 1201px)
+{
+  .container_responsive_wide { width: 1170px; margin: 0 auto; max-width: none !important; }
+}*/
 
 /* 970px and down: minimal headers */
 

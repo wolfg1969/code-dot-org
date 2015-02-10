@@ -1,5 +1,5 @@
 #pageheader-wrapper
-  #pageheader
+  #pageheader{style: "background-color: rgba(0, 178, 192, 0.5);"}
     .content
       #left
         %a{:href=>"/"}
@@ -11,8 +11,8 @@
         %a.headerlink{:href=>"/learn"}LEARN
         %a.headerlink{:href=>"/educate"}TEACH
         %a.headerlink{:href=>"/promote"}STATS
-        %a.headerlink{:href=>"/help"}HOW TO HELP
-        %a.headerlink{:href=>"/about"}ABOUT
+        %a.headerlink{:href=>"/help"}HELP US
+        -#%a.headerlink{:href=>"/about"}ABOUT
 
     #clear{:style=>'clear:both'}
 
@@ -22,7 +22,7 @@
 
 :javascript
   $ = jQuery;
-  $(document).ready(function() {
+  $(document).ready_not(function() {
     $.ajax({
       type: "GET",
       url: '/dashboardapi/user_menu',
