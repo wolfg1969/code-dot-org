@@ -34,6 +34,18 @@ class ScriptLevelsController < ApplicationController
     render 'levels/embed_blocks', layout: false, locals: options
   end
 
+  def embed_level
+    authorize! :show, ScriptLevel
+    @level = Level.find(params[:level_id])
+    @game = @level.game
+    @hide_source = true
+    @embed = true
+    @share = false
+    @no_padding = true
+    @skip_instructions_popup = true
+    render 'levels/show'
+  end
+
   def show
     authorize! :show, ScriptLevel
     @script = Script.get_from_cache(params[:script_id])

@@ -22,15 +22,7 @@ class LevelsController < ApplicationController
   # GET /levels/1.json
   def show
     set_videos_and_blocks_and_callouts_and_instructions
-
     @full_width = true
-    if params[:embed]
-      @hide_source = true
-      @embed = true
-      @share = false
-      @no_padding = true
-      @skip_instructions_popup = true
-    end
   end
 
   # GET /levels/1/edit
@@ -138,9 +130,7 @@ class LevelsController < ApplicationController
 
   def new
     authorize! :create, :level
-    if params[:type].nil_or_empty?
-      @levels = Naturally.sort_by(Level.where(user: current_user), :name)
-    else
+    if params.has_key? :type
       @type_class = params[:type].constantize
       if @type_class == Artist
         @game = Game.custom_artist
@@ -157,6 +147,8 @@ class LevelsController < ApplicationController
       end
       @level = @type_class.new
       render :edit
+    else
+      @levels = Naturally.sort_by(Level.where(user: current_user), :name)
     end
   end
 

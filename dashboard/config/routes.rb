@@ -88,6 +88,7 @@ Dashboard::Application.routes.draw do
     post 'clone', to: 'levels#clone'
   end
 
+  get 'embed_level', to: 'script_levels#embed_level', as: 'embed_level'
   get 'embed_blocks/:block_type', to: 'script_levels#embed_blocks', as: 'embed_blocks'
 
   resources :scripts, path: '/s/' do

@@ -355,7 +355,7 @@ module LevelsHelper
       level = Level.find_by(name: base_level)
       content_tag(:div,
         content_tag(:iframe, '', {
-          src: url_for(id: level.id, controller: :levels, action: :show, embed: true).strip,
+          src: url_for(level_id: level.id, controller: :script_levels, action: :embed_level).strip,
           width: (width ? width.strip : '100%'),
           scrolling: 'no',
           seamless: 'seamless',
