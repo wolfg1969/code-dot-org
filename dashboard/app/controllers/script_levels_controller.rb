@@ -1,6 +1,6 @@
 class ScriptLevelsController < ApplicationController
   check_authorization
-  before_filter :authenticate_user!, :only => [:solution]
+  before_filter :authenticate_user!, only: [:solution]
   include LevelsHelper
 
   def solution
@@ -20,6 +20,20 @@ class ScriptLevelsController < ApplicationController
     end
   end
 
+  def embed_blocks
+    authorize! :read, :level
+    level = Level.find(params[:level_id])
+    block_type = params[:block_type]
+    options = {
+        app: level.game.app,
+        readonly: true,
+        locale: js_locale,
+        baseUrl: "#{ActionController::Base.asset_host}/blockly/",
+        blocks: level.properties[block_type]
+    }
+    render 'levels/embed_blocks', layout: false, locals: options
+  end
+
   def show
     authorize! :show, ScriptLevel
     @script = Script.get_from_cache(params[:script_id])
@@ -28,7 +42,7 @@ class ScriptLevelsController < ApplicationController
       # reset is a special mode which will delete the session if the user is not signed in
       # and start them at the beginning of the script.
       # If the user is signed in, continue normally
-      reset_session if !current_user
+      reset_session unless current_user
       redirect_to(build_script_level_path(@script.starting_level)) and return
     end
 
@@ -45,11 +59,11 @@ class ScriptLevelsController < ApplicationController
 
     present_level
 
-    slog(:tag => 'activity_start',
-         :script_level_id => @script_level.id,
-         :level_id => @script_level.level.id,
-         :user_agent => request.user_agent,
-         :locale => locale) unless @script_level.level.unplugged?
+    slog(tag: 'activity_start',
+         script_level_id: @script_level.id,
+         level_id: @script_level.level.id,
+         user_agent: request.user_agent,
+         locale: locale) unless @script_level.level.unplugged?
   end
 
 private
@@ -109,9 +123,10 @@ private
   end
 
   def present_level
+    # All database look-ups should have already been cached by Script::script_cache_from_db
     @level = @script_level.level
     @game = @level.game
-    @stage = @script_level.stage # this should be included
+    @stage = @script_level.stage
 
     set_videos_and_blocks_and_callouts_and_instructions
 
